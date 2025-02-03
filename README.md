@@ -2,12 +2,17 @@
 
 A plugin that provides custom page providers for custom/specialized search.
 
-
 ## Custom Page Providers
 
 (Well. As of "now", we have only one :-))
 
 ### "simple-vector-search" PageProvider for Vector Search
+
+> [!NOTE]
+> This page provider is direct copy of the Pageprovider provided with [nuxeo-aws-bedrock-connector](https://github.com/nuxeo-sandbox/nuxeo-aws-bedrock-connector).
+> (we will likely remove this Pageprovider from the aws-bedrock plugin)
+
+
 Vector search enables use cases such as semantic search and RAG.
 A [sample configuration template](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/embedding-sample) is provided in this plugin.
 

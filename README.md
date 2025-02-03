@@ -6,10 +6,10 @@ A plugin that provides custom page providers for custom/specialized search.
 
 (Well. As of "now", we have only one :-))
 
-### "simple-vector-search" PageProvider for Vector Search
+### "simple-vector-search" PageProvider
 
 > [!NOTE]
-> This page provider is direct copy of the Pageprovider provided with [nuxeo-aws-bedrock-connector](https://github.com/nuxeo-sandbox/nuxeo-aws-bedrock-connector).
+> This page provider is a copy of the "simple-vector-search" PageProvider found in [nuxeo-aws-bedrock-connector](https://github.com/nuxeo-sandbox/nuxeo-aws-bedrock-connector).
 > (we will likely remove this Pageprovider from the aws-bedrock plugin)
 
 
@@ -23,7 +23,7 @@ There are two main parts for this vector search:
 
 
 #### The PageProvider
-Assuming the configuration (see below) is correct and embeddings/vectors are correctly stored in openSearch, the plugin brings vector search capabilities to the Nuxeo search API.
+Assuming the configuration (see below) is correct and embeddings/vectors are correctly stored in OpenSearch, the plugin brings vector search capabilities to the Nuxeo search API.
 
 The Pageprovider exposes several named parameters:
 
@@ -36,19 +36,51 @@ The Pageprovider exposes several named parameters:
 | k                              | The k value for knn                                                              | integer | false    | 10            |
 | min_score                      | The min_score for results the a hit must satisfied                               | float   | false    | 0.4           |
 
-The search input is either `vector_value` or the combination `input_text` and `embedding_automation_processor`. 
-For the latter, the model used to generate the embedding must be same as the model used to generate the embedding vectors for `vector_index`
+The search input is either `vector_value` or the combination `input_text` and `embedding_automation_processor`.
+
+> [!IMPORTANT]
+> When using `input_text` and `embedding_automation_processor`, the model used to generate the embeddings must be same as the model used to generate the embedding vectors for `vector_index`
 
 > [!TIP]
-> When calculating embeddings, you will use another plugin to generate the embeddings (suwh as nuxeo-aws-bedrock-connector or nuxeo-hyland-content-intelligence-connector, once the service is ready to provide embeddings). Just make sure to use the same embeddingLenght than the one used in the OpenSearch mapping (see below).
+> When calculating embeddings, you will use another plugin (such as [nuxeo-aws-bedrock-connector](https://github.com/nuxeo-sandbox/nuxeo-aws-bedrock-connector) or [nuxeo-hyland-content-intelligence-connector](https://github.com/nuxeo-sandbox/nuxeo-hyland-content-intelligence-connector), once the service is ready to provide embeddings). Just make sure to use the same embeddingLenght than the one used in the OpenSearch mapping (see below).
 
 
-Here's an example of call
+* Example with `curl`:
 
 ```curl
 curl 'http://localhost:8080/nuxeo/api/v1/search/pp/simple-vector-search/execute?input_text=japanese%20kei%20car&vector_index=embedding%3Aimage&embedding_automation_processor=javascript.text2embedding&k=10' \
   -H 'Content-Type: application/json' \
   -H 'accept: text/plain,application/json, application/json' \
+```
+<br>
+<br>
+
+* Example with Nuxeo Automation Scripting:
+
+```javascript
+  . . .
+  // Set the page provider parameters
+  var namedParametersValues = "k=5";
+  namedParametersValues += "\nmin_score=0.6";
+  namedParametersValues += "\nvector_index=embedding:image";
+  var embbedings = input['embedding:image'];
+  // vectors are, in this example, stored in the "embedding:image" field
+  // (input['embedding:image'] is a Java array, to be converted to JS)
+  namedParametersValues += "\nvector_value=" + JSON.stringify(toJsArray(embbedings));
+
+  // Perform the search
+  Console.log("Searching similar assets using vector search...");
+  var similarAssets = Repository.PageProvider(input, {
+    'providerName': 'simple-vector-search',
+    'namedParameters': namedParametersValues
+  });
+
+  // Handle results
+  Console.log("  Found similar asset(s): " + similarAssets.size());
+  if(similarAssets.size() > 0) {
+    // . . . process the similar assets . . .
+  }
+. . .
 ```
 
 #### OpenSearch Configuration
@@ -113,7 +145,7 @@ This is a moving project (no API maintenance, no deprecation process, etc.) If a
 useful for the Nuxeo Platform in general, they will be integrated directly into platform, not maintained here.
 
 # Nuxeo Marketplace
-[here](https://connect.nuxeo.com/nuxeo/site/marketplace/package/nuxeo-aws-bedrock-connector)
+[here](https://connect.nuxeo.com/nuxeo/site/marketplace/package/nuxeo-custom-page-providers)
 
 # License
 [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html)

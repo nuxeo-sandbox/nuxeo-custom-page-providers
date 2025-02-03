@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:nxs="http://www.nuxeo.org/ecm/project/schemas/simple-vector-search_pp"
+           targetNamespace="http://www.nuxeo.org/ecm/project/schemas/simple-vector-search_pp">
+  <!-- helper XSD definitions for list types -->  
+  <xs:simpleType name="doubleList">
+    <xs:list itemType="xs:double"/>
+  </xs:simpleType>
+  <xs:element name="vector" type="nxs:doubleList"/>
+</xs:schema>

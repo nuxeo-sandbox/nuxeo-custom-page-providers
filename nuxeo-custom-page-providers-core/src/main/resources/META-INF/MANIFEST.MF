@@ -1,0 +1,9 @@
+Bundle-ActivationPolicy: lazy
+Bundle-ClassPath: .
+Manifest-Version: 1.0
+Bundle-Vendor: org.nuxeo.labs.custom.page.providers
+Bundle-Version: 1.0.0
+Bundle-Name: nuxeo-custom-page-providers-core
+Bundle-ManifestVersion: 2
+Bundle-SymbolicName: nuxeo-custom-page-providers-core;singleton=true
+Nuxeo-Component: OSGI-INF/simple-vector-search-pp-contrib.xml

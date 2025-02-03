@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="org.nuxeo.labs.custom.page.providers.sample.automation" version="1.0.0">
+
+    <extension target="org.nuxeo.automation.scripting.internals.AutomationScriptingComponent" point="operation">
+
+        <scriptedOperation id="javascript.api_compute_picture_embeddings">
+            <inputType>document</inputType>
+            <outputType>document</outputType>
+            <category>javascript</category>
+            <description></description>
+            <script>
+                <![CDATA[function run(input, params) {
+
+                      var blob = Picture.GetView(input, {
+                        'viewName': 'FullHD'
+                      });
+
+                      var base64 = Base64Helper.blob2Base64(blob);
+
+                      var payload = {
+                        "inputText": input['dc:description'],
+                        "inputImage": base64,
+                        "embeddingConfig": {
+                         "outputEmbeddingLength": 1024
+                         }
+                      };
+
+                      var responseBlob = Bedrock.Invoke(null, {
+                        'jsonPayload': JSON.stringify(payload),
+                        'modelName': 'amazon.titan-embed-image-v1',
+                        'useCache': true
+                      });
+
+                      var response = JSON.parse(responseBlob.getString());
+
+                      input['embedding:image'] = response.embedding;
+
+                      input = Document.Save(input, {});
+
+                      return input;
+                    }]]>
+            </script>
+        </scriptedOperation>
+
+        <scriptedOperation id="javascript.api_describe_image">
+            <inputType>document</inputType>
+            <outputType>document</outputType>
+            <category>javascript</category>
+            <description></description>
+            <script><![CDATA[function run(input, params) {
+
+              if (!input.hasFacet('Picture')) {
+                Console.log('Not a Picture');
+                return input;
+              }
+
+              var blob = Picture.GetView(input, {
+                'viewName': 'FullHD'
+              });
+
+              var base64 = Base64Helper.blob2Base64(blob);
+
+              var payload = {
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": [
+                      {
+                        "type": "image",
+                        "source": {
+                          "type": "base64",
+                          "media_type": "image/jpeg",
+                          "data": base64
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "text": "Describe the content of the image"
+                      }
+                    ]
+                  }
+                ],
+                "max_tokens": 100,
+                "anthropic_version": "bedrock-2023-05-31"
+              };
+
+              var responseBlob = Bedrock.Invoke(null, {
+                'jsonPayload': JSON.stringify(payload),
+                'modelName': 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+                'useCache': true
+              });
+
+              var response = JSON.parse(responseBlob.getString());
+
+              input['dc:description'] = response.content[0].text;
+
+              input = Document.Save(input, {});
+
+              return input;
+
+            }]]>
+            </script>
+        </scriptedOperation>
+
+        <scriptedOperation id="javascript.eh_picture_view_generated">
+            <inputType>document</inputType>
+            <outputType>document</outputType>
+            <category>javascript</category>
+            <description></description>
+            <script>
+                <![CDATA[function run(input, params) {
+
+              input = javascript.api_describe_image(input, {});
+
+              input = javascript.api_compute_picture_embeddings(input, {});
+
+              return input;
+            }]]>
+            </script>
+        </scriptedOperation>
+
+        <scriptedOperation id="javascript.text2embedding">
+            <inputType>void</inputType>
+            <outputType>void</outputType>
+            <category>javascript</category>
+            <param name="input_text" type="String"/>
+            <description></description>
+            <script>
+                <![CDATA[function run(input, params) {
+                  var payload = {
+                    "inputText": params.input_text,
+                    "embeddingConfig": {
+                     "outputEmbeddingLength": 1024
+                     }
+                  };
+
+                  var responseBlob = Bedrock.Invoke(null, {
+                    'jsonPayload': JSON.stringify(payload),
+                    'modelName': 'amazon.titan-embed-image-v1',
+                    'useCache': true
+                  });
+
+                  var response = JSON.parse(responseBlob.getString());
+
+                  return JSON.stringify(response.embedding);
+            }]]>
+            </script>
+        </scriptedOperation>
+
+    </extension>
+
+    <extension target="org.nuxeo.ecm.core.operation.OperationServiceComponent" point="event-handlers">
+        <handler chainId="javascript.eh_picture_view_generated" id="onPictureViewGenerated" postCommit="true">
+            <event>pictureViewsGenerationDone</event>
+            <filters>
+                <facet>Embedding</facet>
+                <facet>Picture</facet>
+                <attribute>Regular Document</attribute>
+            </filters>
+        </handler>
+    </extension>
+
+</component>

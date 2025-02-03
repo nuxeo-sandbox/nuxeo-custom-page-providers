@@ -1,0 +1,71 @@
+<!--
+***
+STUDIO CODE SPACE
+***
+Studio will use this file to generate your configuration.
+You may tweak it, but note that any configuration seen as invalid by Studio will automatically be removed.
+
+Should you wish to add custom code, we recommend using the aws-bedrock-sample-custom-bundle.html file instead.
+-->
+<link rel="import" href="tab/nuxeo-similar-images-tab.html">
+
+<!-- Contribution of element 'nuxeo-menu-icon' for slot 'DRAWER_ITEMS' -->
+<nuxeo-slot-content name="Find" slot="DRAWER_ITEMS" order="1">
+    <template>
+        <nuxeo-menu-icon name="find" label="Find" icon="icons:info-outline"></nuxeo-menu-icon>
+    </template>
+</nuxeo-slot-content>
+<!-- Contribution of element 'nuxeo-search-form' for slot 'DRAWER_PAGES' -->
+<nuxeo-slot-content name="Find" slot="DRAWER_PAGES">
+    <template>
+        <nuxeo-search-form provider="simple-vector-search" schemas="dublincore" search-name="embedding-search" name="find"></nuxeo-search-form>
+    </template>
+</nuxeo-slot-content>
+
+<!-- Contribution of element 'nuxeo-operation-button' for slot 'DOCUMENT_ACTIONS' -->
+<nuxeo-slot-content name="getPictureDescription" slot="DOCUMENT_ACTIONS" order="1">
+    <template>
+        <nuxeo-filter document="[[document]]" facet="Embedding" permission="ReadWrite" user="[[user]]">
+            <template>
+                <nuxeo-operation-button icon="icons:lightbulb-outline" label="Describe Image"
+                                        operation="javascript.api_describe_image" input="[[document]]"
+                                        notification="Description saved"
+                                        event="document-updated"></nuxeo-operation-button>
+            </template>
+        </nuxeo-filter>
+    </template>
+</nuxeo-slot-content>
+<!-- Contribution of element 'nuxeo-operation-button' for slot 'DOCUMENT_ACTIONS' -->
+<nuxeo-slot-content name="getPictureEmbedding" slot="DOCUMENT_ACTIONS" order="1">
+    <template>
+        <nuxeo-filter document="[[document]]" facet="Embedding" permission="ReadWrite" user="[[user]]">
+            <template>
+                <nuxeo-operation-button icon="icons:fingerprint" label="Compute Embedding"
+                                        operation="javascript.api_compute_picture_embeddings" input="[[document]]"
+                                        notification="Embedding saved"
+                                        event="document-updated"></nuxeo-operation-button>
+            </template>
+        </nuxeo-filter>
+    </template>
+</nuxeo-slot-content>
+<!-- Contribution of element 'nuxeo-page-item' for slot 'DOCUMENT_VIEWS_ITEMS' -->
+<nuxeo-slot-content name="similarImageTab" slot="DOCUMENT_VIEWS_ITEMS" order="10">
+    <template>
+        <nuxeo-filter document="[[document]]" facet="Embedding">
+            <template>
+                <nuxeo-page-item name="SimilarImageTab" label="More Like This"></nuxeo-page-item>
+            </template>
+        </nuxeo-filter>
+    </template>
+</nuxeo-slot-content>
+<!-- Contribution of element 'nuxeo-similar-images-tab' for slot 'DOCUMENT_VIEWS_PAGES' -->
+<nuxeo-slot-content name="SimilarImageTab" slot="DOCUMENT_VIEWS_PAGES">
+    <template>
+        <nuxeo-filter document="[[document]]" facet="Embedding">
+            <template>
+                <nuxeo-similar-images-tab document="[[document]]" name="SimilarImageTab"></nuxeo-similar-images-tab>
+            </template>
+        </nuxeo-filter>
+    </template>
+</nuxeo-slot-content>
+

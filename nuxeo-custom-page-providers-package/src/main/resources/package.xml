@@ -1,6 +1,6 @@
 <!-- See documentation at http://doc.nuxeo.com/x/HgIz -->
 <package type="addon" name="nuxeo-custom-page-providers" version="@VERSION@">
-  <title>Nuxeo AWS Bedrock Connector</title>
+  <title>Nuxeo Custom Page Providers</title>
   <description>
     <p>Custom Page Providers</p>
   </description>

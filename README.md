@@ -53,7 +53,6 @@ curl 'http://localhost:8080/nuxeo/api/v1/search/pp/simple-vector-search/execute?
   -H 'accept: text/plain,application/json, application/json' \
 ```
 <br>
-<br>
 
 * Example with Nuxeo Automation Scripting:
 
@@ -62,9 +61,9 @@ curl 'http://localhost:8080/nuxeo/api/v1/search/pp/simple-vector-search/execute?
   // Set the page provider parameters
   var namedParametersValues = "k=5";
   namedParametersValues += "\nmin_score=0.6";
+  // Vectors are, in this example, stored in the "embedding:image" field
   namedParametersValues += "\nvector_index=embedding:image";
   var embbedings = input['embedding:image'];
-  // vectors are, in this example, stored in the "embedding:image" field
   // (input['embedding:image'] is a Java array, to be converted to JS)
   namedParametersValues += "\nvector_value=" + JSON.stringify(toJsArray(embbedings));
 
@@ -86,6 +85,10 @@ curl 'http://localhost:8080/nuxeo/api/v1/search/pp/simple-vector-search/execute?
 #### OpenSearch Configuration
 This feature is implemented only for OpenSearch 1.3.x. In order to use the feature, knn must be enabled at the index level. This can only be done with a package configuration template.
 A sample index configuration is available [here](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-knn/nxserver/config/elasticsearch-doc-settings.json.nxftl)
+
+Typically, after deploying the plugin, you would change nuxeo.conf (or any configuration file used in a Docker build) to append the template. For example:
+
+nuxeo.append.templates.system=default,mongodb<b>,opensearch-knn</b>
 
 Vector fields must be explicitly declared in the index mapping.
 

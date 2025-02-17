@@ -33,7 +33,7 @@ public class TestVectorSearchPageProvider {
 
     @Test
     public void testPP() {
-        PageProviderDefinition def = PageProviderHelper.getPageProviderDefinition("simple-vector-search");
+        PageProviderDefinition def = PageProviderHelper.getPageProviderDefinition("VectorSearchPP");
         HashMap<String,String> namedParameters = new HashMap<>();
         namedParameters.put("vector_index", "embedding");
         namedParameters.put("vector_value", Arrays.toString(new double[]{1.0,2.0}));

@@ -6,7 +6,7 @@
     <extension point="providers" target="org.nuxeo.ecm.platform.query.api.PageProviderService">
 
         <genericPageProvider class="org.nuxeo.labs.custom.page.providers.VectorSearchPageProvider"
-                             name="simple-vector-search">
+                             name="VectorSearchPP">
             <trackUsage>false</trackUsage>
             <property name="coreSession">#{documentManager}</property>
             <whereClause>

@@ -7,7 +7,7 @@ A plugin that provides custom page providers for custom/specialized search.
 * VectorSearchPageProvider
 * StringListPageProvider
 
-### VectorSearchPageProvider • "simple-vector-search" PageProvider Contribution
+### VectorSearchPageProvider • "VectorSearchPP" PageProvider Contribution
 
 > [!NOTE]
 > This page provider is a copy of the same PageProvider found in [nuxeo-aws-bedrock-connector](https://github.com/nuxeo-sandbox/nuxeo-aws-bedrock-connector).
@@ -43,7 +43,7 @@ The search input is either `vector_value` or the combination `input_text` and `e
 > [!TIP]
 > When calculating embeddings, you will use another plugin (such as [nuxeo-aws-bedrock-connector](https://github.com/nuxeo-sandbox/nuxeo-aws-bedrock-connector) or [nuxeo-hyland-content-intelligence-connector](https://github.com/nuxeo-sandbox/nuxeo-hyland-content-intelligence-connector), once the service is ready to provide embeddings). Just make sure to use the same embeddingLenght than the one used in the OpenSearch mapping (see below).
 
-The plugin contributes this PageProvider in the simple-vector-search-pp-contrib.xml file, under the name "simple-vector-search", so it can be used immediately. You can of course contribute another one (or as many as you want) with a different `name`, or override this one if you just want to change the `fixedPart`. Here, we contribute a new one, named "myVectorSearchPP" in Nuxeo Studio XML. It filters also by docType and `isProxy`.
+The plugin contributes this PageProvider in the `VectorSearch-contrib.xml` file, under the name `"VectorSearchPP"`, so it can be used immediately. You can of course contribute another one (or as many as you want) with a different `name`, or override this one if you just want to change the `fixedPart`. Here for example, we contribute a new one, named "myVectorSearchPP" in Nuxeo Studio XML. It filters also by document type and `isProxy`.
 
 > [!IMPORTANT]
 > You must always use the `<property name="coreSession">#{documentManager}</property>` property, this is mandatory.
@@ -62,16 +62,16 @@ The plugin contributes this PageProvider in the simple-vector-search-pp-contrib.
 </extension>
 ```
 
-* Example with `curl` and the Default "simple-vector-search" Contribution
+* Example with `curl` and the Default "VectorSearchPP" Contribution
 
 ```curl
-curl 'http://localhost:8080/nuxeo/api/v1/search/pp/simple-vector-search/execute?input_text=japanese%20kei%20car&vector_index=embedding%3Aimage&embedding_automation_processor=javascript.text2embedding&k=10' \
+curl 'http://localhost:8080/nuxeo/api/v1/search/pp/VectorSearchPP/execute?input_text=japanese%20kei%20car&vector_index=embedding%3Aimage&embedding_automation_processor=javascript.text2embedding&k=10' \
   -H 'Content-Type: application/json' \
   -H 'accept: text/plain,application/json, application/json' \
 ```
 <br>
 
-* Example with Nuxeo Automation Scripting and the Default "simple-vector-search" Contribution
+* Example with Nuxeo Automation Scripting and the Default "VectorSearchPP" Contribution
 
 ```javascript
   . . .
@@ -87,7 +87,7 @@ curl 'http://localhost:8080/nuxeo/api/v1/search/pp/simple-vector-search/execute?
   // Perform the search
   Console.log("Searching similar assets using vector search...");
   var similarAssets = Repository.PageProvider(input, {
-    'providerName': 'simple-vector-search',
+    'providerName': 'VectorSearchPP',
     'namedParameters': namedParametersValues
   });
 

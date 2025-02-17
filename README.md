@@ -4,8 +4,8 @@ A plugin that provides custom page providers for custom/specialized search.
 
 ## Custom Page Providers
 
-* VectorSearchPageProvider
-* StringListPageProvider
+* Vector Search Page Provider
+* StringList Page Provider
 
 ### VectorSearchPageProvider • "VectorSearchPP" PageProvider Contribution
 

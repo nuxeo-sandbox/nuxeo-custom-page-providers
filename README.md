@@ -4,8 +4,6 @@ A plugin that provides custom page providers for custom/specialized search.
 
 ## Custom Page Providers
 
-(Well. As of "now", we have only one :-))
-
 ### "simple-vector-search" PageProvider
 
 > [!NOTE]
@@ -127,6 +125,38 @@ Vector fields must be explicitly declared in the index mapping.
 ```
 This can be done by overriding the whole mapping configuration in a package configuration template or by using Nuxeo Studio.
 
+### StringList PageProvider
+
+This PageProvider will return a `DocumentModelList` ordered in the same order as a StringList field.
+
+### Usage
+
+* copy the following definition in a Studio XML Extension, and set the `xpath` parameter to the StringList field you want to use. For example, here we named the page provider "pp_mystringlistfield" and used the `mysschema:myStringListField` field.
+
+> [!IMPORTANT]
+> You must use the `coreSession` and `currentDocument` properties they are required as in the example below.
+> These value ar field by Nuxeo depending on the context of the call.
+> 
+> The `class` property must not be changed too, of course.
+
+
+> [!TIP]
+> If you need this feature on several fields, you must create as many XML extension and just change the `name` of the provider and the `xpath`.
+
+In this example we named the page provider "pp_mystringlistfield" and used the `mysschema:myStringListField` field:
+
+```
+<extension target="org.nuxeo.ecm.platform.query.api.PageProviderService"
+           point="providers">
+    <genericPageProvider name="pp_mystringlistfield" class="org.nuxeo.labs.custom.page.providers.StringListPageProvider">
+      <property name="coreSession">#{documentManager}</property>
+      <property name="currentDoc">#{currentDocument}</property>
+        <!-- Put the xpath of your String Multivalued field here -->
+        <!-- no xpath means the current document is a Collection -->
+        <property name="xpath">myschema:myStringListField</property>
+    </genericPageProvider>
+</extension>
+```
 
 
 ## How to build
@@ -138,7 +168,7 @@ mvn clean install
 
 To skip docker build/test, add `-DskipDocker`. Ti skip unit testing, add `-DskipTests`
 
-# Support
+## Support
 **These features are not part of the Nuxeo Production platform.**
 
 These solutions are provided for inspiration and we encourage customers to use them as code samples and learning
@@ -147,13 +177,13 @@ resources.
 This is a moving project (no API maintenance, no deprecation process, etc.) If any of these solutions are found to be
 useful for the Nuxeo Platform in general, they will be integrated directly into platform, not maintained here.
 
-# Nuxeo Marketplace
+## Nuxeo Marketplace
 [here](https://connect.nuxeo.com/nuxeo/site/marketplace/package/nuxeo-custom-page-providers)
 
-# License
+## License
 [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html)
 
-# About Nuxeo
+## About Nuxeo
 Nuxeo Platform is an open source Content Services platform, written in Java. Data can be stored in both SQL & NoSQL
 databases.
 

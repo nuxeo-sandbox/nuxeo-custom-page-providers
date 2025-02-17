@@ -4,12 +4,14 @@ A plugin that provides custom page providers for custom/specialized search.
 
 ## Custom Page Providers
 
-### "simple-vector-search" PageProvider
+* VectorSearchPageProvider
+* StringListPageProvider
+
+### VectorSearchPageProvider • "simple-vector-search" PageProvider Contribution
 
 > [!NOTE]
-> This page provider is a copy of the "simple-vector-search" PageProvider found in [nuxeo-aws-bedrock-connector](https://github.com/nuxeo-sandbox/nuxeo-aws-bedrock-connector).
+> This page provider is a copy of the same PageProvider found in [nuxeo-aws-bedrock-connector](https://github.com/nuxeo-sandbox/nuxeo-aws-bedrock-connector).
 > (we will likely remove this Pageprovider from the aws-bedrock plugin)
-
 
 Vector search enables use cases such as semantic search and RAG.
 A [sample configuration template](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/embedding-sample) is provided in this plugin.
@@ -18,7 +20,6 @@ There are two main parts for this vector search:
 
 * The PageProvider and its parameters
 * The required configuration of OpenSearch
-
 
 #### The PageProvider
 Assuming the configuration (see below) is correct and embeddings/vectors are correctly stored in OpenSearch, the plugin brings vector search capabilities to the Nuxeo search API.
@@ -42,8 +43,26 @@ The search input is either `vector_value` or the combination `input_text` and `e
 > [!TIP]
 > When calculating embeddings, you will use another plugin (such as [nuxeo-aws-bedrock-connector](https://github.com/nuxeo-sandbox/nuxeo-aws-bedrock-connector) or [nuxeo-hyland-content-intelligence-connector](https://github.com/nuxeo-sandbox/nuxeo-hyland-content-intelligence-connector), once the service is ready to provide embeddings). Just make sure to use the same embeddingLenght than the one used in the OpenSearch mapping (see below).
 
+The plugin contributes this PageProvider in the simple-vector-search-pp-contrib.xml file, under the name "simple-vector-search", so it can be used immediately. You can of course contribute another one (or as many as you want) with a different `name`, or override this one if you just want to change the `fixedPart`. Here, we contribute a new one, named "myVectorSearchPP" in Nuxeo Studio XML. It filters also by docType and `isProxy`.
 
-* Example with `curl`:
+> [!IMPORTANT]
+> You must always use the `<property name="coreSession">#{documentManager}</property>` property, this is mandatory.
+
+```xml
+<extension point="providers" target="org.nuxeo.ecm.platform.query.api.PageProviderService">
+  <genericPageProvider class="org.nuxeo.labs.custom.page.providers.VectorSearchPageProvider"
+                        name="myVectorSearchPP">
+      <trackUsage>false</trackUsage>
+      <property name="coreSession">#{documentManager}</property>
+      <whereClause>
+          <fixedPart>ecm:mixinType != 'HiddenInNavigation' AND ecm:isVersion = 0 AND ecm:isTrashed = 0 AND ecm:isProxy = 0 AND ecm:primaryType = 'MyDocType'</fixedPart>
+      </whereClause>
+      <pageSize>10</pageSize>
+  </genericPageProvider>
+</extension>
+```
+
+* Example with `curl` and the Default "simple-vector-search" Contribution
 
 ```curl
 curl 'http://localhost:8080/nuxeo/api/v1/search/pp/simple-vector-search/execute?input_text=japanese%20kei%20car&vector_index=embedding%3Aimage&embedding_automation_processor=javascript.text2embedding&k=10' \
@@ -52,7 +71,7 @@ curl 'http://localhost:8080/nuxeo/api/v1/search/pp/simple-vector-search/execute?
 ```
 <br>
 
-* Example with Nuxeo Automation Scripting:
+* Example with Nuxeo Automation Scripting and the Default "simple-vector-search" Contribution
 
 ```javascript
   . . .
@@ -131,14 +150,17 @@ This PageProvider will return a `DocumentModelList` ordered in the same order as
 
 ### Usage
 
-* copy the following definition in a Studio XML Extension, and set the `xpath` parameter to the StringList field you want to use. For example, here we named the page provider "pp_mystringlistfield" and used the `mysschema:myStringListField` field.
+* You need to:
+  * Contribute a Pageprovider using the `StringListPageProvider` class
+  * Called the page provider with named parameter, `currentDocumentId`, whose value must be set to the current document ID (the document holding the list of related document IDs)
+
+#### Contribute a New PageProvider Using `StringListPageProvider`
+
+Copy the following contribution in a Studio XML Extension, and set the `xpath` parameter to the StringList field you want to use. For example, here we named the page provider "pp_mystringlistfield" and used the `mysschema:myStringListField` field.
 
 > [!IMPORTANT]
-> You must use the `coreSession` and `currentDocument` properties they are required as in the example below.
-> These value ar field by Nuxeo depending on the context of the call.
-> 
-> The `class` property must not be changed too, of course.
-
+> * You must use the `coreSession` property, it is required as in the example below.
+> * The `class` property must not be changed too, of course.
 
 > [!TIP]
 > If you need this feature on several fields, you must create as many XML extension and just change the `name` of the provider and the `xpath`.
@@ -148,16 +170,31 @@ In this example we named the page provider "pp_mystringlistfield" and used the `
 ```
 <extension target="org.nuxeo.ecm.platform.query.api.PageProviderService"
            point="providers">
-    <genericPageProvider name="pp_mystringlistfield" class="org.nuxeo.labs.custom.page.providers.StringListPageProvider">
-      <property name="coreSession">#{documentManager}</property>
-      <property name="currentDoc">#{currentDocument}</property>
-        <!-- Put the xpath of your String Multivalued field here -->
-        <!-- no xpath means the current document is a Collection -->
-        <property name="xpath">myschema:myStringListField</property>
-    </genericPageProvider>
+  <genericPageProvider name="pp_mystringlistfield" class="org.nuxeo.labs.custom.page.providers.StringListPageProvider">
+    <property name="coreSession">#{documentManager}</property>
+    <!-- Put the xpath of your String Multivalued field here -->
+    <!-- no xpath means the current document is a Collection -->
+    <property name="xpath">myschema:myStringListField</property>
+  </genericPageProvider>
 </extension>
 ```
 
+#### Call this PageProvider
+
+##### Example with JS Automation:
+
+```javascript
+// input is a document holding the values for myschema:myStringListField
+function run(input, params) {
+  var docs = Repository.PageProvider(
+    input, {
+      'providerName': "pp_mystringlistfield",
+      'namedParameters': "currentDocumentId=" + input.id
+    });
+  
+  . . . docs hold the documents in the correct order . . .
+}
+```
 
 ## How to build
 ```bash

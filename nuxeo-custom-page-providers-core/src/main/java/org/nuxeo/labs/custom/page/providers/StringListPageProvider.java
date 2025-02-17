@@ -99,8 +99,6 @@ public class StringListPageProvider extends AbstractPageProvider<DocumentModel> 
     @Override
     public List<DocumentModel> getCurrentPage() {
         
-        log.error("COUCOU COUCOU COUCOU COUCOU COUCOU COUCOU");
-
         DocumentModelList docs = new DocumentModelListImpl();
 
         CoreSession session = getCoreSession();
@@ -115,6 +113,7 @@ public class StringListPageProvider extends AbstractPageProvider<DocumentModel> 
             return getEmptyResult();
         }
         
+        @SuppressWarnings("unchecked")
         Map<String, String> namedParameters = (Map<String, String>) searchDoc.getContextData(NAMED_PARAMETERS);
         if(namedParameters == null) {
             log.error("No namedParameters, missing the " + CURRENT_DOCUMENT_ID_PARAM + " parameter.");
@@ -129,7 +128,7 @@ public class StringListPageProvider extends AbstractPageProvider<DocumentModel> 
         
         IdRef ref = new IdRef(currentDocumentId);
         if(!session.exists(ref)) {
-            throw new NuxeoException("Document does nopt exist: " + currentDocumentId);
+            throw new NuxeoException("Document does not exist: " + currentDocumentId);
         }
         
         DocumentModel currentDoc = session.getDocument(ref);
@@ -138,8 +137,7 @@ public class StringListPageProvider extends AbstractPageProvider<DocumentModel> 
             if (Framework.getService(CollectionManager.class).isCollection(currentDoc)) {
                 xpath = CollectionConstants.COLLECTION_DOCUMENT_IDS_PROPERTY_NAME;
             } else {
-                log.error("No xpath provided for this PageProvider, and current document is not a collection");
-                return getEmptyResult();
+                throw new NuxeoException("No xpath provided for this PageProvider, and current document is not a collection.");
             }
         }
 

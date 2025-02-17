@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified"
+           targetNamespace="http://www.nuxeo.org/ecm/schemas/simplestringlist/"
+           xmlns:nxs="http://www.nuxeo.org/ecm/schemas/simplestringlist/">
+
+  <xs:simpleType name="itemsList">
+    <xs:list itemType="xs:string" />
+  </xs:simpleType>
+
+  <xs:element name="stringList" type="nxs:itemsList"/>
+
+</xs:schema>

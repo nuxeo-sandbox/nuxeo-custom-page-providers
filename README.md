@@ -7,7 +7,7 @@ A plugin that provides custom page providers for custom/specialized search.
 * Vector Search Page Provider
 * StringList Page Provider
 
-### VectorSearchPageProvider • "VectorSearchPP" PageProvider Contribution
+### The Vector Search Page Provider • "VectorSearchPP" Page Provider Contribution
 
 > [!NOTE]
 > This page provider is a copy of the same PageProvider found in [nuxeo-aws-bedrock-connector](https://github.com/nuxeo-sandbox/nuxeo-aws-bedrock-connector). We just renamed the PageProvider contribution (from "simple-vector-search" to "VectorSearchPP").
@@ -144,7 +144,7 @@ Vector fields must be explicitly declared in the index mapping.
 ```
 This can be done by overriding the whole mapping configuration in a package configuration template or by using Nuxeo Studio.
 
-### StringList PageProvider
+### StringList Page Provider
 
 This PageProvider will return a `DocumentModelList` ordered in the same order as a StringList field.
 

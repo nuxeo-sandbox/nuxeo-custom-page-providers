@@ -148,6 +148,11 @@ This can be done by overriding the whole mapping configuration in a package conf
 
 This PageProvider will return a `DocumentModelList` ordered in the same order as a StringList field.
 
+> [!NOTE]
+> This is the upgrade of a very old PageProvider. Notice it is easy to now to get the same result with just some JS Automation.
+> We keeop it here as an example of use.
+
+
 ### Usage
 
 * You need to:

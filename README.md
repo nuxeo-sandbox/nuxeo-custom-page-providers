@@ -11,7 +11,8 @@ A plugin that provides custom page providers for custom/specialized search.
 
 > [!NOTE]
 > This page provider is a copy of the same PageProvider found in [nuxeo-aws-bedrock-connector](https://github.com/nuxeo-sandbox/nuxeo-aws-bedrock-connector). We just renamed the PageProvider contribution (from "simple-vector-search" to "VectorSearchPP").
-> (we will likely remove this Pageprovider from the aws-bedrock plugin)
+> 
+> We will likely remove this Pageprovider from the aws-bedrock plugin.
 
 Vector search enables use cases such as semantic search and RAG.
 A [sample configuration template](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/embedding-sample) is provided in this plugin.
@@ -146,10 +147,11 @@ This can be done by overriding the whole mapping configuration in a package conf
 
 ### StringList Page Provider
 
-This PageProvider will return a `DocumentModelList` ordered in the same order as a StringList field.
+This PageProvider will return a `DocumentModelList` ordered in the same order as a StringList field. If you don't set an `xpath` in the contribution(s) (see below), then it means the current document holds a `Collection` and the plugin with use the corresponding field.
 
 > [!NOTE]
 > This is the upgrade of a very old PageProvider, coded even before Nuxeo WebUI existed. Notice it is now easy to get the same result with, for example, just some JS Automation.
+> 
 > We keep it here as an example of use.
 
 
@@ -157,7 +159,7 @@ This PageProvider will return a `DocumentModelList` ordered in the same order as
 
 * You need to:
   * Contribute a Pageprovider using the `StringListPageProvider` class
-  * Called the page provider with named parameter, `currentDocumentId`, whose value must be set to the current document ID (the document holding the list of related document IDs)
+  * Call the page provider with a _named parameter_, `currentDocumentId`, whose value must be set to the current document ID (the document holding the list of related document IDs)
 
 #### Contribute a New PageProvider Using `StringListPageProvider`
 

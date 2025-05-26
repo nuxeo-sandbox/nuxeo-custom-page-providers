@@ -42,7 +42,7 @@ The search input is either `vector_value` or the combination `input_text` and `e
 > When using `input_text` and `embedding_automation_processor`, the model used to generate the embeddings must be same as the model used to generate the embedding vectors for `vector_index`
 
 > [!TIP]
-> When calculating embeddings, you will use another plugin (such as [nuxeo-aws-bedrock-connector](https://github.com/nuxeo-sandbox/nuxeo-aws-bedrock-connector) or [nuxeo-hyland-content-intelligence-connector](https://github.com/nuxeo-sandbox/nuxeo-hyland-content-intelligence-connector), once the service is ready to provide embeddings). Just make sure to use the same embeddingLenght than the one used in the OpenSearch mapping (see below).
+> When calculating embeddings, you will use another plugin (such as [nuxeo-aws-bedrock-connector](https://github.com/nuxeo-sandbox/nuxeo-aws-bedrock-connector) or [nuxeo-labs-knowledge-enrichment-connector](https://github.com/nuxeo-sandbox/nuxeo-labs-knowledge-enrichment-connector). Just make sure to use the same embeddingLenght than the one used in the OpenSearch mapping (see below).
 
 The plugin contributes this PageProvider in the `VectorSearch-contrib.xml` file, under the name `"VectorSearchPP"`, so it can be used immediately. You can of course contribute another one (or as many as you want) with a different `name`, or override this one if you just want to change the `fixedPart`. Here for example, we contribute a new one, named "myVectorSearchPP" in Nuxeo Studio XML. It filters also by document type and `isProxy`.
 
@@ -80,7 +80,7 @@ curl 'http://localhost:8080/nuxeo/api/v1/search/pp/VectorSearchPP/execute?input_
   var namedParametersValues = "k=5";
   namedParametersValues += "\nmin_score=0.6";
   // Vectors are, in this example, stored in the "embedding:image" field
-  namedParametersValues += "\nvector_index=embedding:image";
+  namedParametersValues += "\nvector_index=embedding:image"; // WARNING: your field may be named embeddings:image, or something else
   var embbedings = input['embedding:image'];
   // (input['embedding:image'] is a Java array, to be converted to JS)
   namedParametersValues += "\nvector_value=" + JSON.stringify(toJsArray(embbedings));
@@ -108,8 +108,30 @@ Typically, after deploying the plugin, you would change nuxeo.conf (or any confi
 
 nuxeo.append.templates.system=default,mongodb<b>,opensearch-knn</b>
 
-Vector fields must be explicitly declared in the index mapping.
+You also can use one of the two other configuration templates example:
 
+* `embedding-sample` provides everyting: An `embedding` schema, a facet contribution to `Picture`, UI elements (button, tab for silimar assets, …) the opensearch/elasticsearch required contribution, etc.
+
+> [!IMPORTANT]
+> Please, look at what is deployed to make sure there is no collision with your own schemas
+
+* `embeddings-basic` only deploy the required elasticsearch/opensearch configuration for handling 2 fields, `embeddings:image` and `embeddings:text`. It does not deploy anything else.
+
+> [!IMPORTANT]
+> * Notice the name is embeddings (plural)
+> * This deployment assumes the project deploys the `embeddings` schema holding at least these 2 fields
+
+So, ultimately, you will deploy 2 templates:
+
+* nuxeo.append.templates.system=default,mongodb<b>,embedding-sample, opensearch-knn</b>
+* Or nuxeo.append.templates.system=default,mongodb<b>,embeddings-basic, opensearch-knn</b>
+
+
+#### If you need to created your own mapping:
+
+1. Vector fields must be explicitly declared in the index mapping.
+
+2. Here is an example JSON.
 > [!IMPORTANT]
 > The `dimension` property must correspond to the embbedings size when you asked AI to calculate embeddings (see for example [nuxeo-aws-bedrock-connector](https://github.com/nuxeo-sandbox/nuxeo-aws-bedrock-connector))
 

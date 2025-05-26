@@ -104,27 +104,32 @@ curl 'http://localhost:8080/nuxeo/api/v1/search/pp/VectorSearchPP/execute?input_
 This feature is implemented only for OpenSearch 1.3.x. In order to use the feature, knn must be enabled at the index level. This can only be done with a package configuration template.
 A sample index configuration is available [here](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-knn/nxserver/config/elasticsearch-doc-settings.json.nxftl)
 
+The plugin provides 3 configuration templates (see the source code of nuxeo-custom-page-providers-package):
+
+* `opensearch-knn`
+  * Deploys only the [OpenSearch configuration](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-knn/nxserver/config/elasticsearch-doc-settings.json.nxftl) seen above, to add the vector Search (knn type)
+  * This means: When deploying this template, you still need to configure the document mapping for using the index on the fields you want (can be done in Stdio)
+* `embeddings-basic`
+  * Deploys
+    * The [OpenSearch configuration](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-knn/nxserver/config/elasticsearch-doc-settings.json.nxftl), to add the vector Search (knn type)
+    * And the [doc mapping](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/embeddings-basic/nxserver/config) to add 2 indexs, one for `embeddings:image` and one for `embeddings:text`.
+  * **This requires that these 2 fields exist in your configuration**, it is your responsibility to create the `embeddings` schema and add `image` and `text` to it (as `double multivalued`)
+* `embedding-sample`
+  * Deploys
+    * The [OpenSearch configuration](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-knn/nxserver/config/elasticsearch-doc-settings.json.nxftl)
+    * And "everything" for using it. See [source code](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/embedding-sample/nxserver/config).
+      * `embedding` schema
+      * `Embedding` facet, added to `Picture``
+      * UI elements (buttons, tab)
+      * etc.
+
+> [!IMPORTANT]
+> * `embeddings-basic` expects the `embeddings` schema, plural form
+> * While `embedding-sample` deploys the `embedding` schema.
+
 Typically, after deploying the plugin, you would change nuxeo.conf (or any configuration file used in a Docker build) to append the template. For example:
 
-nuxeo.append.templates.system=default,mongodb<b>,opensearch-knn</b>
-
-You also can use one of the two other configuration templates example:
-
-* `embedding-sample` provides everyting: An `embedding` schema, a facet contribution to `Picture`, UI elements (button, tab for silimar assets, …) the opensearch/elasticsearch required contribution, etc.
-
-> [!IMPORTANT]
-> Please, look at what is deployed to make sure there is no collision with your own schemas
-
-* `embeddings-basic` only deploy the required elasticsearch/opensearch configuration for handling 2 fields, `embeddings:image` and `embeddings:text`. It does not deploy anything else.
-
-> [!IMPORTANT]
-> * Notice the name is embeddings (plural)
-> * This deployment assumes the project deploys the `embeddings` schema holding at least these 2 fields
-
-So, ultimately, you will deploy 2 templates:
-
-* nuxeo.append.templates.system=default,mongodb<b>,embedding-sample, opensearch-knn</b>
-* Or nuxeo.append.templates.system=default,mongodb<b>,embeddings-basic, opensearch-knn</b>
+nuxeo.append.templates.system=default,mongodb<b>,embedding-basic</b>
 
 
 #### If you need to created your own mapping:

@@ -15,7 +15,9 @@ A plugin that provides custom page providers for custom/specialized search.
 > We will likely remove this Pageprovider from the aws-bedrock plugin.
 
 Vector search enables use cases such as semantic search and RAG.
-A [sample configuration template](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/embedding-sample) is provided in this plugin.
+
+The plugin provides configuration template with OpenSearch configuration and storage/usage of embeddinhs/vectors (see _OpenSearch Configuration_ below)
+
 
 There are two main parts for this vector search:
 
@@ -102,22 +104,22 @@ curl 'http://localhost:8080/nuxeo/api/v1/search/pp/VectorSearchPP/execute?input_
 
 #### OpenSearch Configuration
 This feature is implemented only for OpenSearch 1.3.x. In order to use the feature, knn must be enabled at the index level. This can only be done with a package configuration template.
-A sample index configuration is available [here](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-knn/nxserver/config/elasticsearch-doc-settings.json.nxftl)
+A sample index configuration is available [here](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-with-knn/nxserver/config/elasticsearch-doc-settings.json.nxftl)
 
 The plugin provides 3 configuration templates (see the source code of nuxeo-custom-page-providers-package):
 
-* `opensearch-knn`
-  * Deploys only the [OpenSearch configuration](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-knn/nxserver/config/elasticsearch-doc-settings.json.nxftl) seen above, to add the vector Search (knn type)
+* `opensearch-with-knn`
+  * Deploys only the [OpenSearch configuration](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-with-knn/nxserver/config/elasticsearch-doc-settings.json.nxftl) seen above, to add the vector Search (knn type)
   * This means: When deploying this template, you still need to configure the document mapping for using the index on the fields you want (can be done in Stdio)
 * `embeddings-basic`
   * Deploys
-    * The [OpenSearch configuration](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-knn/nxserver/config/elasticsearch-doc-settings.json.nxftl), to add the vector Search (knn type)
+    * The [OpenSearch configuration](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-with-knn/nxserver/config/elasticsearch-doc-settings.json.nxftl), to add the vector Search (knn type)
     * And the [doc mapping](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/embeddings-basic/nxserver/config) to add 2 indexs, one for `embeddings:image` and one for `embeddings:text`.
   * **This requires that these 2 fields exist in your configuration**, it is your responsibility to create the `embeddings` schema and add `image` and `text` to it (as `double multivalued`)
-* `embedding-sample`
+* `embedding-example`
   * Deploys
-    * The [OpenSearch configuration](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-knn/nxserver/config/elasticsearch-doc-settings.json.nxftl)
-    * And "everything" for using it. See [source code](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/embedding-sample/nxserver/config).
+    * The [OpenSearch configuration](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-with-knn/nxserver/config/elasticsearch-doc-settings.json.nxftl)
+    * And "everything" for using it. See [source code](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/embedding-example/nxserver/config).
       * `embedding` schema
       * `Embedding` facet, added to `Picture``
       * UI elements (buttons, tab)
@@ -125,7 +127,7 @@ The plugin provides 3 configuration templates (see the source code of nuxeo-cust
 
 > [!IMPORTANT]
 > * `embeddings-basic` expects the `embeddings` schema, plural form
-> * While `embedding-sample` deploys the `embedding` schema.
+> * While `embedding-example` deploys the `embedding` schema.
 
 Typically, after deploying the plugin, you would change nuxeo.conf (or any configuration file used in a Docker build) to append the template. For example:
 

@@ -1,2 +1,2 @@
 ## Edit this file to customize your configuration ##
-opensearch-knn.target=.
+opensearch-with-knn.target=.

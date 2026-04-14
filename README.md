@@ -14,6 +14,9 @@ A plugin that provides custom page providers for custom/specialized search.
 > 
 > We will likely remove this Pageprovider from the aws-bedrock plugin.
 
+> [!CAUTION]
+> Starting with Nuxeo LTS2025, there are 2 possible search engines, Elasticsearch or Opensearch. **The Vector Search Page Provider requires OpenSearch**. If you deploy it with a Nuxeo 2025 deploying Elasticsearch, you will have errors (like Class Not Found)
+
 Vector search enables use cases such as semantic search and RAG.
 
 The plugin provides configuration template with OpenSearch configuration and storage/usage of embeddinhs/vectors (see _OpenSearch Configuration_ below)

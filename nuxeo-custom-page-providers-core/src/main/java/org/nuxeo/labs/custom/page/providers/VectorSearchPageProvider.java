@@ -26,15 +26,12 @@ import org.nuxeo.ecm.automation.OperationContext;
 import org.nuxeo.ecm.automation.OperationException;
 import org.nuxeo.ecm.core.api.*;
 import org.nuxeo.ecm.core.api.impl.DocumentModelListImpl;
-import org.nuxeo.ecm.platform.query.api.Aggregate;
-import org.nuxeo.ecm.platform.query.api.Bucket;
-import org.nuxeo.elasticsearch.aggregate.AggregateEsBase;
-import org.nuxeo.elasticsearch.api.ESClient;
-import org.nuxeo.elasticsearch.api.ElasticSearchAdmin;
-import org.nuxeo.elasticsearch.fetcher.VcsFetcher;
-import org.nuxeo.elasticsearch.provider.ElasticSearchNxqlPageProvider;
-import org.nuxeo.elasticsearch.query.NxQueryBuilder;
+import org.nuxeo.ecm.core.search.SearchIndex;
+import org.nuxeo.ecm.core.search.SearchService;
+import org.nuxeo.ecm.platform.query.nxql.SearchServicePageProvider;
 import org.nuxeo.runtime.api.Framework;
+import org.nuxeo.runtime.opensearch1.OpenSearchClientService;
+import org.nuxeo.runtime.opensearch1.client.OpenSearchClient;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.index.query.BoolQueryBuilder;
@@ -42,9 +39,6 @@ import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.search.SearchHit;
 import org.opensearch.search.SearchHits;
-import org.opensearch.search.aggregations.AbstractAggregationBuilder;
-import org.opensearch.search.aggregations.Aggregation;
-import org.opensearch.search.aggregations.bucket.filter.Filter;
 import org.opensearch.search.builder.SearchSourceBuilder;
 
 import java.util.*;
@@ -52,7 +46,9 @@ import java.util.*;
 import static org.nuxeo.ecm.platform.query.api.PageProviderService.NAMED_PARAMETERS;
 
 
-public class VectorSearchPageProvider extends ElasticSearchNxqlPageProvider {
+public class VectorSearchPageProvider extends SearchServicePageProvider {
+
+    private static final long serialVersionUID = 1L;
 
     public static final String RELEVANCE_SCORE = "relevance_score";
 
@@ -66,12 +62,13 @@ public class VectorSearchPageProvider extends ElasticSearchNxqlPageProvider {
             return currentPageDocuments;
         }
 
-        //fallback to default implementation if there is no vector search
+        // fallback to default implementation if there is no vector search
         DocumentModel searchDoc = getSearchDocumentModel();
         if (searchDoc == null) {
             return getEmptyResult();
         }
 
+        @SuppressWarnings("unchecked")
         Map<String, String> namedParameters = (Map<String, String>) searchDoc.getContextData(NAMED_PARAMETERS);
         if (namedParameters == null) {
             return super.getCurrentPage();
@@ -98,15 +95,13 @@ public class VectorSearchPageProvider extends ElasticSearchNxqlPageProvider {
             throw new NuxeoException(String.format("Cannot perform null query: check provider '%s'", getName()));
         }
 
-        NxQueryBuilder nxQuery = new NxQueryBuilder(coreSession).nxql(query).addAggregates(buildAggregates());
-
         if (StringUtils.isBlank(vector)) {
-            //get text input and create embedding
+            // get text input and create embedding
             if (StringUtils.isBlank(inputText)) {
                 return getEmptyResult();
             }
 
-            //get embedding automation processor
+            // get embedding automation processor
             String chainName = namedParameters.get("embedding_automation_processor");
 
             AutomationService automationService = Framework.getService(AutomationService.class);
@@ -143,56 +138,53 @@ public class VectorSearchPageProvider extends ElasticSearchNxqlPageProvider {
 
         SearchRequest searchRequest = new SearchRequest();
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().query(queryBuilder)
-                .from(nxQuery.getOffset()).minScore(minScore);
+                .from((int) getCurrentPageOffset()).minScore(minScore);
 
-        //build nxql post filter
-        QueryBuilder nxqlPostFilter = nxQuery.makeQuery();
-
-        //build aggregate post filter
-        QueryBuilder aggregatePostFilter = getAggregateFilter(nxQuery);
-
-        BoolQueryBuilder postFilter = QueryBuilders.boolQuery().must(nxqlPostFilter);
-
-        if (aggregatePostFilter != null) {
-            postFilter.must(aggregatePostFilter);
+        // Build NXQL post filter using the query string built from the page provider definition.
+        // We convert the NXQL query to an OpenSearch query_string filter.
+        BoolQueryBuilder postFilter = QueryBuilders.boolQuery();
+        if (StringUtils.isNotBlank(query)) {
+            // Use query_string to pass the NXQL-generated WHERE clause as an OpenSearch filter
+            postFilter.must(QueryBuilders.queryStringQuery(query));
         }
 
         searchSourceBuilder.postFilter(postFilter);
 
-        //add aggregates
-        for (AbstractAggregationBuilder<?> aggregate : nxQuery.getEsAggregates()) {
-            searchSourceBuilder.aggregation(aggregate);
-        }
+        // Resolve the OpenSearch index name from the SearchService
+        SearchService searchService = Framework.getService(SearchService.class);
+        String repository = coreSession.getRepositoryName();
+        String defaultIndexName = searchService.getDefaultIndexName(repository);
+        SearchIndex defaultSearchIndex = searchService.getSearchIndex(defaultIndexName);
+        String osIndexName = defaultSearchIndex.index();
+        searchRequest.indices(osIndexName);
 
         searchRequest.source(searchSourceBuilder);
 
-        ElasticSearchAdmin esa = Framework.getService(ElasticSearchAdmin.class);
-        ESClient client = esa.getClient();
+        // Get the raw OpenSearch client
+        OpenSearchClientService osService = Framework.getService(OpenSearchClientService.class);
+        if (osService == null) {
+            throw new NuxeoException(
+                    "OpenSearchClientService is not available. Vector search requires an OpenSearch backend.");
+        }
+        String clientId = defaultSearchIndex.client();
+        OpenSearchClient client = osService.getClient(clientId);
 
         SearchResponse response = client.search(searchRequest);
 
-        VcsFetcher fetcher = new VcsFetcher(getCoreSession(), response, null);
-
         SearchHits hits = response.getHits();
 
-        List<DocumentModel> documents = fetcher.fetchDocuments();
-
-        //reorder using relevance
+        // Load documents from the repository by their IDs
         List<DocumentModel> result = new ArrayList<>();
         for (SearchHit hit : hits.getHits()) {
-            Optional<DocumentModel> documentOpt = documents.stream().filter(doc -> doc.getId().equals(hit.getId())).findFirst();
-            documentOpt.ifPresent(doc -> {
-                doc.putContextData(RELEVANCE_SCORE,hit.getScore());
+            IdRef docRef = new IdRef(hit.getId());
+            if (coreSession.exists(docRef)) {
+                DocumentModel doc = coreSession.getDocument(docRef);
+                doc.putContextData(RELEVANCE_SCORE, hit.getScore());
                 result.add(doc);
-            });
+            }
         }
 
         currentPageDocuments = result;
-
-        currentAggregates = new HashMap<>(getResultAggregates(nxQuery, response).size());
-        for (Aggregate<Bucket> agg : getResultAggregates(nxQuery, response)) {
-            currentAggregates.put(agg.getId(), agg);
-        }
 
         // set total number of hits
         setResultsCount(result.size());
@@ -203,37 +195,6 @@ public class VectorSearchPageProvider extends ElasticSearchNxqlPageProvider {
     public DocumentModelList getEmptyResult() {
         setResultsCount(0);
         return new DocumentModelListImpl();
-    }
-
-    public List<Aggregate<Bucket>> getResultAggregates(NxQueryBuilder queryBuilder, SearchResponse response) {
-        for (AggregateEsBase<Aggregation, Bucket> agg : queryBuilder.getAggregates()) {
-            Filter filter = response.getAggregations().get(NxQueryBuilder.getAggregateFilterId(agg));
-            if (filter == null) {
-                continue;
-            }
-            Aggregation aggregation = filter.getAggregations().get(agg.getId());
-            if (aggregation == null) {
-                continue;
-            }
-            agg.parseAggregation(aggregation);
-        }
-        @SuppressWarnings("unchecked")
-        List<Aggregate<Bucket>> ret = (List<Aggregate<Bucket>>) (List<?>) queryBuilder.getAggregates();
-        return ret;
-    }
-
-    public QueryBuilder getAggregateFilter(NxQueryBuilder builder) {
-        BoolQueryBuilder ret = QueryBuilders.boolQuery();
-        for (AggregateEsBase<?, ?> agg : builder.getAggregates()) {
-            QueryBuilder filter = agg.getEsFilter();
-            if (filter != null) {
-                ret.must(filter);
-            }
-        }
-        if (!ret.hasClauses()) {
-            return null;
-        }
-        return ret;
     }
 
 }

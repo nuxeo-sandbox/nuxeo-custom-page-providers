@@ -1,12 +1,13 @@
 {
-  "index.translog.durability": "${elasticsearch.index.translog.durability}",
-<#if "${elasticsearch.addressList}" != "">
-  "number_of_shards": "${elasticsearch.indexNumberOfShards}",
-  "number_of_replicas": "${elasticsearch.indexNumberOfReplicas}",
-<#else>
+  "index.translog.durability": "${nuxeo.search.client.default.opensearch1.settings.indexTranslogDurability}",
+<#if "${(nuxeo.opensearch1.embed.enabled)!}" == "true" && "${nuxeo.search.client.default.opensearch1.client.server}" == "">
   "number_of_shards": "1",
   "number_of_replicas": "0",
+<#else>
+  "number_of_shards": "${nuxeo.search.client.default.opensearch1.settings.numberOfShards}",
+  "number_of_replicas": "${nuxeo.search.client.default.opensearch1.settings.numberOfReplicas}",
 </#if>
+  "index.mapping.ignore_malformed": ${nuxeo.search.client.default.opensearch1.settings.ignoreMalformed},
   "knn": true,
   "knn.algo_param.ef_search": 100,
   "analysis": {

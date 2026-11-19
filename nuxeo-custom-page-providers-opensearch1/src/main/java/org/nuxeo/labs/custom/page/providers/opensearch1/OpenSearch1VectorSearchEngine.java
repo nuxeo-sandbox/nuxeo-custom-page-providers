@@ -49,7 +49,6 @@ import org.nuxeo.runtime.opensearch1.OpenSearchClientService;
 import org.nuxeo.runtime.opensearch1.client.OpenSearchClient;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.search.SearchHit;
@@ -125,27 +124,24 @@ public class OpenSearch1VectorSearchEngine implements VectorSearchEngine {
     }
 
     /**
-     * Swaps the queries of the request built from the NXQL query: the knn query becomes the main scoring query, and
-     * the NXQL query joins the existing post-filter.
+     * Rewrites the query of the request built from the NXQL query: the knn query becomes the only scoring clause, and
+     * the NXQL query (which holds the ACL filter) becomes a filter of that same query.
+     * <p>
+     * The NXQL query must not go to the post-filter: aggregations are computed before the post-filter, so their
+     * counts would include documents the NXQL query (and the ACLs) exclude. The existing post-filter, which Nuxeo
+     * uses for the selection of aggregate buckets, is left as is.
      */
     static void applyKnnQuery(SearchSourceBuilder source, String vectorField, float[] vector, int k, float minScore) {
         QueryBuilder nxqlQuery = source.query();
-        QueryBuilder existingPostFilter = source.postFilter();
 
         // There is no knn query builder in the OpenSearch 1 client: wrap the raw JSON
-        source.query(QueryBuilders.wrapperQuery(knnQueryJson(vectorField, vector, k)));
+        QueryBuilder knnQuery = QueryBuilders.wrapperQuery(knnQueryJson(vectorField, vector, k));
+        if (nxqlQuery == null) {
+            source.query(knnQuery);
+        } else {
+            source.query(QueryBuilders.boolQuery().must(knnQuery).filter(nxqlQuery));
+        }
         source.minScore(minScore);
-
-        BoolQueryBuilder postFilter = QueryBuilders.boolQuery();
-        if (nxqlQuery != null) {
-            postFilter.must(nxqlQuery);
-        }
-        if (existingPostFilter != null) {
-            postFilter.must(existingPostFilter);
-        }
-        if (postFilter.hasClauses()) {
-            source.postFilter(postFilter);
-        }
     }
 
     /**

@@ -113,27 +113,27 @@ public class OpenSearch2VectorSearchEngine implements VectorSearchEngine {
     }
 
     /**
-     * Swaps the queries of the request built from the NXQL query: the knn query becomes the main scoring query, and
-     * the NXQL query joins the existing post-filter.
+     * Rewrites the query of the request built from the NXQL query: the knn query becomes the only scoring clause, and
+     * the NXQL query (which holds the ACL filter) becomes a filter of that same query.
+     * <p>
+     * The NXQL query must not go to the post-filter: aggregations are computed before the post-filter, so their
+     * counts would include documents the NXQL query (and the ACLs) exclude. The existing post-filter, which Nuxeo
+     * uses for the selection of aggregate buckets, is left as is.
      * <p>
      * Requests are immutable in the opensearch-java client: this returns a modified copy.
      */
     static SearchRequest toKnnRequest(SearchRequest nxqlRequest, String vectorField, float[] vector, int k,
             float minScore) {
-        List<Query> postFilters = new ArrayList<>();
-        if (nxqlRequest.query() != null) {
-            postFilters.add(nxqlRequest.query());
-        }
-        if (nxqlRequest.postFilter() != null) {
-            postFilters.add(nxqlRequest.postFilter());
-        }
+        Query nxqlQuery = nxqlRequest.query();
+        Query knnQuery = Query.of(q -> q.knn(knn -> knn.field(vectorField).vector(vector).k(k)));
 
         SearchRequest.Builder builder = nxqlRequest.toBuilder();
-        builder.query(q -> q.knn(knn -> knn.field(vectorField).vector(vector).k(k)));
-        builder.minScore((double) minScore);
-        if (!postFilters.isEmpty()) {
-            builder.postFilter(q -> q.bool(b -> b.must(postFilters)));
+        if (nxqlQuery == null) {
+            builder.query(knnQuery);
+        } else {
+            builder.query(q -> q.bool(b -> b.must(knnQuery).filter(nxqlQuery)));
         }
+        builder.minScore((double) minScore);
         return builder.build();
     }
 

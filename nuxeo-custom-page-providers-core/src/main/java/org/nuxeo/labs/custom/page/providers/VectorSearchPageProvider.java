@@ -62,8 +62,9 @@ import static org.nuxeo.ecm.platform.query.api.PageProviderService.NAMED_PARAMET
  * {@link VectorSearchEngine} matching the deployed search client.
  * <p>
  * The knn query is used as the main scoring query, while the NXQL query
- * (from the page provider definition) is applied as a post-filter.
- * Aggregates defined in the page provider are also computed.
+ * (from the page provider definition) is applied as a filter of it.
+ * Aggregates defined in the page provider are also computed, on the documents
+ * matching both.
  * <p>
  * Named parameters:
  * <ul>
@@ -181,7 +182,7 @@ public class VectorSearchPageProvider extends SearchServicePageProvider {
 
         // The knn query can only be built with the native API of the search engine: delegate to the engine
         // matching the deployed search client (OpenSearch 1 or OpenSearch 2).
-        // It runs the knn query as the main scoring query and the NXQL query as a post-filter.
+        // It runs the knn query as the main scoring query and the NXQL query as a filter of it.
         SearchClient searchClient = indexingService.getClient(searchIndex.client());
         VectorSearchEngine engine = VectorSearchEngines.forClient(searchClient);
 

@@ -27,7 +27,8 @@ package org.nuxeo.labs.custom.page.providers.vector;
 public interface VectorSearchEngine {
 
     /**
-     * Runs the knn query as the main (scoring) query, with the NXQL query of the request applied as a post-filter.
+     * Runs the knn query as the only scoring query, with the NXQL query of the request applied as a filter of it, so
+     * that hits and aggregates are both restricted to the documents matching the NXQL query (and the ACLs it holds).
      * <p>
      * The buckets of the aggregates held by {@code request.searchQuery()} are filled in place.
      */

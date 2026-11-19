@@ -44,6 +44,9 @@ The Pageprovider exposes several named parameters:
 
 The search input is either `vector_value` or the combination `input_text` and `embedding_automation_processor`.
 
+> [!NOTE]
+> The knn query finds the `k` nearest documents, and the query of the page provider (its `fixedPart`, etc.) plus the permissions of the current user then filter them: you can get less than `k` results. The aggregates of the page provider, if any, are computed on these filtered results.
+
 > [!IMPORTANT]
 > When using `input_text` and `embedding_automation_processor`, the model used to generate the embeddings must be same as the model used to generate the embedding vectors for `vector_index`
 

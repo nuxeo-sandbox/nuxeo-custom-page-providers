@@ -29,6 +29,7 @@ import org.nuxeo.labs.custom.page.providers.vector.VectorSearchEngine;
 import org.nuxeo.labs.custom.page.providers.vector.VectorSearchEngines;
 import org.opensearch.client.opensearch._types.FieldValue;
 import org.opensearch.client.opensearch._types.SearchType;
+import org.opensearch.client.opensearch._types.query_dsl.BoolQuery;
 import org.opensearch.client.opensearch._types.query_dsl.KnnQuery;
 import org.opensearch.client.opensearch._types.query_dsl.Query;
 import org.opensearch.client.opensearch.core.SearchRequest;
@@ -54,7 +55,7 @@ public class TestOpenSearch2VectorSearchEngine {
     }
 
     @Test
-    public void knnBecomesTheMainQueryAndNxqlJoinsThePostFilter() {
+    public void knnIsTheScoringQueryAndNxqlFiltersIt() {
         Query nxqlQuery = term("ecm:primaryType", "Picture");
         Query aggregatePostFilter = term("dc:nature", "photo");
         SearchRequest nxqlRequest = new SearchRequest.Builder().index("nuxeo")
@@ -70,20 +71,24 @@ public class TestOpenSearch2VectorSearchEngine {
         SearchRequest knnRequest = OpenSearch2VectorSearchEngine.toKnnRequest(nxqlRequest, "embedding:image", VECTOR,
                 7, 0.4f);
 
-        // main query: { "knn": { "embedding:image": { "vector": [...], "k": 7 } } }
-        assertTrue(knnRequest.query().isKnn());
-        KnnQuery knn = knnRequest.query().knn();
+        // main query: knn is the only scoring clause...
+        assertTrue(knnRequest.query().isBool());
+        BoolQuery query = knnRequest.query().bool();
+        assertEquals(1, query.must().size());
+        assertTrue(query.should().isEmpty());
+        assertTrue(query.mustNot().isEmpty());
+        assertTrue(query.must().get(0).isKnn());
+        KnnQuery knn = query.must().get(0).knn();
         assertEquals("embedding:image", knn.field());
         assertArrayEquals(VECTOR, knn.vector(), 0f);
         assertEquals(Integer.valueOf(7), knn.k());
+        // ... filtered by the NXQL query (which holds the ACL filter), so that aggregates are filtered too
+        assertEquals(List.of(nxqlQuery), query.filter());
 
         assertEquals(0.4d, knnRequest.minScore(), 1e-6);
 
-        // post-filter: the NXQL query (which holds the ACL filter) and the post-filter that was already there
-        assertTrue(knnRequest.postFilter().isBool());
-        assertEquals(List.of(nxqlQuery, aggregatePostFilter), knnRequest.postFilter().bool().must());
-
-        // the rest of the request is carried over
+        // the rest of the request is carried over, including the post-filter (selection of aggregate buckets)
+        assertSame(aggregatePostFilter, knnRequest.postFilter());
         assertEquals(List.of("nuxeo"), knnRequest.index());
         assertEquals(Integer.valueOf(20), knnRequest.from());
         assertEquals(Integer.valueOf(10), knnRequest.size());
@@ -92,7 +97,6 @@ public class TestOpenSearch2VectorSearchEngine {
 
         // requests are immutable: the original one is unchanged
         assertSame(nxqlQuery, nxqlRequest.query());
-        assertSame(aggregatePostFilter, nxqlRequest.postFilter());
     }
 
     @Test
@@ -106,18 +110,7 @@ public class TestOpenSearch2VectorSearchEngine {
     }
 
     @Test
-    public void nxqlAloneBecomesThePostFilter() {
-        Query nxqlQuery = term("ecm:primaryType", "Picture");
-        SearchRequest nxqlRequest = new SearchRequest.Builder().query(nxqlQuery).build();
-
-        SearchRequest knnRequest = OpenSearch2VectorSearchEngine.toKnnRequest(nxqlRequest, "embedding:image", VECTOR,
-                10, 0.4f);
-
-        assertEquals(List.of(nxqlQuery), knnRequest.postFilter().bool().must());
-    }
-
-    @Test
-    public void noPostFilterWhenThereIsNothingToFilterOn() {
+    public void knnAloneWhenThereIsNoNxqlQuery() {
         SearchRequest knnRequest = OpenSearch2VectorSearchEngine.toKnnRequest(new SearchRequest.Builder().build(),
                 "embedding:image", VECTOR, 10, 0.4f);
 

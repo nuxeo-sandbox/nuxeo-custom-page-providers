@@ -7,8 +7,12 @@ services:
     volumes:
       - mongodb_data:/data/db
 
+  # OpenSearch 1 by default. For OpenSearch 2, set in .env (see the README):
+  #   OPENSEARCH_IMAGE=opensearchproject/opensearch:2.19.7
+  #   SEARCH_CLIENT_PACKAGE=nuxeo-search-client-opensearch2
+  # and remove the os_data volume when switching (docker compose down -v).
   opensearch:
-    image: opensearchproject/opensearch:1.3.17
+    image: ${OPENSEARCH_IMAGE:-opensearchproject/opensearch:1.3.20}
     hostname: opensearch
     restart: always
     healthcheck:
@@ -25,11 +29,12 @@ services:
       - bootstrap.memory_lock=true
       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
       - "DISABLE_SECURITY_PLUGIN=true"
+      - "DISABLE_INSTALL_DEMO_CONFIG=true"
     volumes:
       - os_data:/usr/share/opensearch/data
 
   nuxeo:
-    image: nuxeo-custom-page-providers:2023.3.0-SNAPSHOT
+    image: nuxeo-custom-page-providers:${PLUGIN_VERSION:-2025.3.0-SNAPSHOT}
     env_file:
       - ./.env
     ports:
@@ -38,7 +43,8 @@ services:
     environment:
       - JAVA_OPTS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:8787
       - NUXEO_DEV=true
-      - NUXEO_PACKAGES=nuxeo-web-ui ${NUXEO_PACKAGES}
+      # The search client package must match the OpenSearch image above
+      - NUXEO_PACKAGES=nuxeo-web-ui ${SEARCH_CLIENT_PACKAGE:-nuxeo-search-client-opensearch1} ${NUXEO_PACKAGES:-}
       - NUXEO_CLID=${NUXEO_CLID}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}

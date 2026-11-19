@@ -15,11 +15,11 @@ A plugin that provides custom page providers for custom/specialized search.
 > We will likely remove this Pageprovider from the aws-bedrock plugin.
 
 > [!CAUTION]
-> Starting with Nuxeo LTS2025, there are 2 possible search engines, Elasticsearch or Opensearch. **The Vector Search Page Provider requires OpenSearch**. If you deploy it with a Nuxeo 2025 deploying Elasticsearch, you will have errors (like Class Not Found)
+> Starting with Nuxeo LTS2025, the search engine is pluggable. **The Vector Search Page Provider requires OpenSearch**, with either the OpenSearch 1 or the OpenSearch 2 search client (packages `nuxeo-search-client-opensearch1` or `nuxeo-search-client-opensearch2`, see _OpenSearch Configuration_ below). With any other search client (the default `repository` one, Elasticsearch), calling it fails with an explicit error.
 
 Vector search enables use cases such as semantic search and RAG.
 
-The plugin provides configuration template with OpenSearch configuration and storage/usage of embeddinhs/vectors (see _OpenSearch Configuration_ below)
+The plugin provides configuration template with OpenSearch configuration and storage/usage of embeddings/vectors (see _OpenSearch Configuration_ below)
 
 
 There are two main parts for this vector search:
@@ -40,6 +40,7 @@ The Pageprovider exposes several named parameters:
 | embedding_automation_processor | The automation chain/script to use to convert `input_text` to a vector embedding | boolean | false    |               |
 | k                              | The k value for knn                                                              | integer | false    | 10            |
 | min_score                      | The min_score for results the a hit must satisfied                               | float   | false    | 0.4           |
+| opensearch_client_id           | The id of the low-level OpenSearch client to use (same id for OpenSearch 1 and 2) | string  | false    | search/default |
 
 The search input is either `vector_value` or the combination `input_text` and `embedding_automation_processor`.
 
@@ -106,25 +107,39 @@ curl 'http://localhost:8080/nuxeo/api/v1/search/pp/VectorSearchPP/execute?input_
 ```
 
 #### OpenSearch Configuration
-This feature is implemented only for OpenSearch 1.3.x. In order to use the feature, knn must be enabled at the index level. This can only be done with a package configuration template.
-A sample index configuration is available [here](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-with-knn/nxserver/config/elasticsearch-doc-settings.json.nxftl)
 
-The plugin provides 3 configuration templates (see the source code of nuxeo-custom-page-providers-package):
+##### Supported Search Clients
+
+The Vector Search Page Provider works with the two OpenSearch search clients available for Nuxeo LTS 2025. Install one of them (they conflict with each other, only one can be installed):
+
+| Nuxeo package                     | OpenSearch server |
+|:----------------------------------|:------------------|
+| `nuxeo-search-client-opensearch1` | OpenSearch 1.3.x  |
+| `nuxeo-search-client-opensearch2` | OpenSearch 2.x    |
+
+It is the same plugin (and the same Marketplace Package) in both cases: it contains one small adapter for each search client and uses the one matching the search client deployed on your server. There is nothing to configure.
+
+##### Configuration Templates
+
+In order to use the feature, knn must be enabled at the index level, and the vector fields must be declared in the index mapping. This can only be done with a package configuration template.
+
+The plugin provides 3 configuration templates (see the source code of nuxeo-custom-page-providers-package). **Each template works with both search clients**: it contains the files for OpenSearch 1 (`opensearch1-doc-*`) and the files for OpenSearch 2 (`opensearch2-doc-*`), and only the files of the installed search client are used.
 
 * `opensearch-with-knn`
-  * Deploys only the [OpenSearch configuration](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-with-knn/nxserver/config/elasticsearch-doc-settings.json.nxftl) seen above, to add the vector Search (knn type)
-  * This means: When deploying this template, you still need to configure the document mapping for using the index on the fields you want (can be done in Stdio)
+  * Deploys only the index settings ([OpenSearch 1](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-with-knn/nxserver/config/opensearch1-doc-settings.json.nxftl), [OpenSearch 2](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-with-knn/nxserver/config/opensearch2-doc-settings.json.nxftl)), to add the vector Search (knn type)
+  * This means: When deploying this template, you still need to configure the document mapping for using the index on the fields you want (can be done in Studio)
 * `embeddings-basic`
   * Deploys
-    * The [OpenSearch configuration](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-with-knn/nxserver/config/elasticsearch-doc-settings.json.nxftl), to add the vector Search (knn type)
-    * And the [doc mapping](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/embeddings-basic/nxserver/config) to add 2 indexs, one for `embeddings:image` and one for `embeddings:text`.
+    * The same index settings, to add the vector Search (knn type)
+    * And the [doc mapping](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/embeddings-basic/nxserver/config) to add 2 indexes, one for `embeddings:image` and one for `embeddings:text`.
   * **This requires that these 2 fields exist in your configuration**, it is your responsibility to create the `embeddings` schema and add `image` and `text` to it (as `double multivalued`)
 * `embedding-example`
   * Deploys
-    * The [OpenSearch configuration](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/opensearch-with-knn/nxserver/config/elasticsearch-doc-settings.json.nxftl)
+    * The same index settings
+    * The [doc mapping](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/embedding-example/nxserver/config) for `embedding:image` and `embedding:text`
     * And "everything" for using it. See [source code](./nuxeo-custom-page-providers-package/src/main/resources/install/templates/embedding-example/nxserver/config).
       * `embedding` schema
-      * `Embedding` facet, added to `Picture``
+      * `Embedding` facet, added to `Picture`
       * UI elements (buttons, tab)
       * etc.
 
@@ -134,14 +149,25 @@ The plugin provides 3 configuration templates (see the source code of nuxeo-cust
 
 Typically, after deploying the plugin, you would change nuxeo.conf (or any configuration file used in a Docker build) to append the template. For example:
 
-nuxeo.append.templates.system=default,mongodb<b>,embedding-basic</b>
+nuxeo.append.templates.system=default,mongodb<b>,embeddings-basic</b>
+
+> [!IMPORTANT]
+> * Templates are applied in order, and the last one wins. The template of this plugin replaces files of the template of the search client (`opensearch1-search-client` or `opensearch2-search-client`, added when its package is installed), so it must come after it. This is the case when you append it as above.
+> * Index settings and mapping are applied only when the index is created. If the index already exists (for example, you add the template to an existing server), you must drop it and re-index the repository.
+
+##### OpenSearch 1 vs OpenSearch 2 mapping
+
+The templates declare the vector fields with the same parameters for both versions (`hnsw`, `l2`), except for the knn engine:
+
+* OpenSearch 1 mappings use the `nmslib` engine.
+* OpenSearch 2 mappings use the `faiss` engine: `nmslib` is deprecated since OpenSearch 2.19, and cannot be used anymore for creating an index in OpenSearch 3.
 
 
 #### If you need to created your own mapping:
 
 1. Vector fields must be explicitly declared in the index mapping.
 
-2. Here is an example JSON.
+2. Here is an example JSON, for OpenSearch 1. For OpenSearch 2, use `"engine": "faiss"` (see above).
 > [!IMPORTANT]
 > The `dimension` property must correspond to the embbedings size when you asked AI to calculate embeddings (see for example [nuxeo-aws-bedrock-connector](https://github.com/nuxeo-sandbox/nuxeo-aws-bedrock-connector))
 
@@ -238,11 +264,31 @@ function run(input, params) {
 ## How to build
 ```bash
 git clone https://github.com/nuxeo-sandbox/nuxeo-custom-page-providers
-cd nuxeo-ustom-page-providers
+cd nuxeo-custom-page-providers
 mvn clean install
 ```
 
-To skip docker build/test, add `-DskipDocker`. Ti skip unit testing, add `-DskipTests`
+To skip docker build/test, add `-DskipDocker`. To skip unit testing, add `-DskipTests`
+
+The build has 3 code modules: `nuxeo-custom-page-providers-core` (the page providers, no dependency on a search engine), and one adapter for each OpenSearch search client, `nuxeo-custom-page-providers-opensearch1` and `nuxeo-custom-page-providers-opensearch2`. Each adapter is compiled against its own search client only. The Marketplace Package deploys the 3 of them.
+
+> [!NOTE]
+> Unit tests do not run a knn query: this requires an OpenSearch server with the k-NN plugin. Test the vector search on a real deployment (see below).
+
+## Run locally with Docker
+
+After building the docker image (`mvn clean install`, without `-DskipDocker`), `docker-compose.yml` starts Nuxeo with MongoDB and OpenSearch, using the `embedding-example` template (see `conf.d/00-docker.conf`). It expects a `.env` file with, at least, your `NUXEO_CLID`.
+
+It runs OpenSearch 1 by default. To run OpenSearch 2, add to the `.env` file:
+
+```
+OPENSEARCH_IMAGE=opensearchproject/opensearch:2.19.7
+SEARCH_CLIENT_PACKAGE=nuxeo-search-client-opensearch2
+```
+
+When switching from one to the other, remove the volumes first (`docker compose down -v`): an OpenSearch 2 node cannot be downgraded, and the index must be re-created with the right mapping.
+
+Other variables: `PLUGIN_VERSION` (tag of the image to run, if not the current snapshot) and `NUXEO_PACKAGES` (more packages to install).
 
 ## Support
 **These features are not part of the Nuxeo Production platform.**

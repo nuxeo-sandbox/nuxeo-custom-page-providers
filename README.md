@@ -81,6 +81,37 @@ curl 'http://localhost:8080/nuxeo/api/v1/search/pp/VectorSearchPP/execute?input_
 ```
 <br>
 
+* Quick Test with `curl`: Find Images Similar to an Existing One
+
+Step 1 reads the vector of a reference image, step 2 sends it to `VectorSearchPP` through the `Repository.PageProvider` automation operation. It uses POST because the search endpoint above (`/api/v1/search/pp/.../execute`) only accepts GET, and a real vector in the URL is larger than the default maximum header size of Nuxeo (`nuxeo.server.http.maxHttpHeaderSize=8192`). It requires `jq`.
+
+The example uses the `embeddings` schema of the `embeddings-basic` template. With the `embedding-example` template, the schema is singular: replace `embeddings` with `embedding` (the `properties` header, the property and `vector_index`).
+
+```bash
+NUXEO=http://localhost:8080/nuxeo
+AUTH=Administrator:<password>
+DOC_ID=<id of a document that has an embeddings:image vector>
+
+# 1. Read the vector of the reference image (prints a message if the document has none)
+VECTOR=$(curl -s -u "$AUTH" -H 'properties: embeddings' "$NUXEO/api/v1/id/$DOC_ID" \
+  | jq -ce '.properties["embeddings:image"] | select(type == "array" and length > 0)') \
+  || echo "No embeddings:image vector on $DOC_ID"
+
+# 2. Search the similar images
+jq -n --arg v "$VECTOR" '{params: {providerName: "VectorSearchPP", pageSize: 30,
+  namedParameters: ("vector_index=embeddings:image\nk=30\nmin_score=0.5\nvector_value=" + $v)}}' \
+| curl -s -u "$AUTH" -X POST "$NUXEO/api/v1/automation/Repository.PageProvider" \
+  -H 'Content-Type: application/json' -H 'properties: dublincore' -d @-
+```
+
+The result is a `documents` list. The reference image is in it: it is its own nearest neighbor.
+
+> [!TIP]
+> * `Missing required property 'KnnQuery.vector'`: the vector is empty. Check that `$VECTOR` holds a JSON array of numbers.
+> * `all shards failed`: the field is not a `knn_vector` in the index (wrong field name, or the index was created before the template was added, see [Existing Repository: Re-create the Index](#existing-repository-re-create-the-index)), or the size of the vector does not match the `dimension` of the mapping.
+
+<br>
+
 * Example with Nuxeo Automation Scripting and the Default "VectorSearchPP" Contribution
 
 ```javascript

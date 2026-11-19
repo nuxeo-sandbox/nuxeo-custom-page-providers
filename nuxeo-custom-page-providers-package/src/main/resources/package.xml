@@ -2,7 +2,7 @@
 <package type="addon" name="nuxeo-custom-page-providers" version="@VERSION@">
   <title>Nuxeo Custom Page Providers</title>
   <description>
-    <p>Custom Page Providers</p>
+    <p>Custom Page Providers with vector search (opensearch1 and opensearch2) and StringList provider</p>
   </description>
   <home-page>https://github.com/nuxeo-sandbox/nuxeo-custom-page-providers</home-page>
   <vendor>Hyland</vendor>

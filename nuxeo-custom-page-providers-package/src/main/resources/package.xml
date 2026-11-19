@@ -37,5 +37,5 @@
   <license>Apache License, Version 2.0</license>
   <license-url>https://www.apache.org/licenses/LICENSE-2.0</license-url>
   <!-- Visibility: PRIVATE | MARKETPLACE | DEV | PUBLIC -->
-  <visibility>PUBLIC</visibility>>
+  <visibility>PUBLIC</visibility>
 </package>

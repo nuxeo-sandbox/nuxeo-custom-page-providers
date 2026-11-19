@@ -3,7 +3,7 @@
   <parent>
     <groupId>org.nuxeo</groupId>
     <artifactId>nuxeo-parent</artifactId>
-    <version>2025.16</version>
+    <version>2025.27</version>
   </parent>
   <groupId>org.nuxeo.labs.custom.page.providers</groupId>
   <artifactId>nuxeo-custom-page-providers-parent</artifactId>
@@ -17,9 +17,13 @@
     <nuxeo.target.version>2025.*</nuxeo.target.version>
     <skipDocker>true</skipDocker>
     <pushReleaseChanges>false</pushReleaseChanges>
+    <!-- Version of the nuxeo-opensearch2 addon the OpenSearch 2 adapter is compiled against -->
+    <nuxeo.opensearch2.version>2025.7.1</nuxeo.opensearch2.version>
   </properties>
   <modules>
     <module>nuxeo-custom-page-providers-core</module>
+    <module>nuxeo-custom-page-providers-opensearch1</module>
+    <module>nuxeo-custom-page-providers-opensearch2</module>
     <module>nuxeo-custom-page-providers-package</module>
     <module>nuxeo-custom-page-providers-docker</module>
   </modules>
@@ -40,6 +44,27 @@
         <groupId>org.nuxeo.labs.custom.page.providers</groupId>
         <artifactId>nuxeo-custom-page-providers-core</artifactId>
         <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.nuxeo.labs.custom.page.providers</groupId>
+        <artifactId>nuxeo-custom-page-providers-opensearch1</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.nuxeo.labs.custom.page.providers</groupId>
+        <artifactId>nuxeo-custom-page-providers-opensearch2</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <!-- OpenSearch 2 search client: a separate Nuxeo addon, not managed by nuxeo-parent -->
+      <dependency>
+        <groupId>org.nuxeo.opensearch2</groupId>
+        <artifactId>nuxeo-runtime-opensearch2</artifactId>
+        <version>${nuxeo.opensearch2.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.nuxeo.opensearch2</groupId>
+        <artifactId>nuxeo-search-client-opensearch2</artifactId>
+        <version>${nuxeo.opensearch2.version}</version>
       </dependency>
       <dependency>
         <groupId>org.nuxeo.labs.custom.page.providers</groupId>

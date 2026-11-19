@@ -25,6 +25,15 @@
       <groupId>org.nuxeo.labs.custom.page.providers</groupId>
       <artifactId>nuxeo-custom-page-providers-core</artifactId>
     </dependency>
+    <!-- Engine adapters: both are shipped, only the one matching the deployed search client is loaded -->
+    <dependency>
+      <groupId>org.nuxeo.labs.custom.page.providers</groupId>
+      <artifactId>nuxeo-custom-page-providers-opensearch1</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.nuxeo.labs.custom.page.providers</groupId>
+      <artifactId>nuxeo-custom-page-providers-opensearch2</artifactId>
+    </dependency>
   </dependencies>
 
   <build>

@@ -19,8 +19,6 @@
 package org.nuxeo.labs.custom.page.providers;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.nuxeo.ecm.automation.AutomationService;
 import org.nuxeo.ecm.automation.OperationContext;
 import org.nuxeo.ecm.automation.OperationException;
@@ -31,40 +29,23 @@ import org.nuxeo.ecm.core.api.IdRef;
 import org.nuxeo.ecm.core.api.NuxeoException;
 import org.nuxeo.ecm.core.api.NuxeoPrincipal;
 import org.nuxeo.ecm.core.api.impl.DocumentModelListImpl;
+import org.nuxeo.ecm.core.search.SearchClient;
 import org.nuxeo.ecm.core.search.SearchIndex;
 import org.nuxeo.ecm.core.search.SearchIndexingService;
 import org.nuxeo.ecm.core.search.SearchQuery;
 import org.nuxeo.ecm.core.search.SearchService;
-import org.nuxeo.ecm.core.search.client.opensearch1.OpenSearchQueryTransformer;
-import org.nuxeo.ecm.core.search.client.opensearch1.OpenSearchSearchClient;
-import org.nuxeo.ecm.core.search.client.opensearch1.aggregate.AggregateParserBase;
-import org.nuxeo.ecm.core.search.client.opensearch1.aggregate.AggregateDateHistogramParser;
-import org.nuxeo.ecm.core.search.client.opensearch1.aggregate.AggregateDateRangeParser;
-import org.nuxeo.ecm.core.search.client.opensearch1.aggregate.AggregateHistogramParser;
-import org.nuxeo.ecm.core.search.client.opensearch1.aggregate.AggregateRangeParser;
-import org.nuxeo.ecm.core.search.client.opensearch1.aggregate.AggregateTermParser;
 import org.nuxeo.ecm.platform.query.api.Aggregate;
 import org.nuxeo.ecm.platform.query.api.Bucket;
-import org.nuxeo.ecm.platform.query.core.AggregateDateHistogram;
-import org.nuxeo.ecm.platform.query.core.AggregateDateRange;
-import org.nuxeo.ecm.platform.query.core.AggregateHistogram;
-import org.nuxeo.ecm.platform.query.core.AggregateRange;
-import org.nuxeo.ecm.platform.query.core.AggregateTerm;
 import org.nuxeo.ecm.platform.query.nxql.SearchServicePageProvider;
+import org.nuxeo.labs.custom.page.providers.vector.VectorSearchEngine;
+import org.nuxeo.labs.custom.page.providers.vector.VectorSearchEngines;
+import org.nuxeo.labs.custom.page.providers.vector.VectorSearchRequest;
+import org.nuxeo.labs.custom.page.providers.vector.VectorSearchResponse;
+import org.nuxeo.labs.custom.page.providers.vector.VectorSearchResponse.VectorSearchHit;
 import org.nuxeo.runtime.api.Framework;
-import org.nuxeo.runtime.opensearch1.OpenSearchClientService;
-import org.nuxeo.runtime.opensearch1.client.OpenSearchClient;
-import org.opensearch.action.search.SearchRequest;
-import org.opensearch.action.search.SearchResponse;
-import org.opensearch.index.query.BoolQueryBuilder;
-import org.opensearch.index.query.QueryBuilder;
-import org.opensearch.index.query.QueryBuilders;
-import org.opensearch.search.SearchHit;
-import org.opensearch.search.SearchHits;
-import org.opensearch.search.aggregations.Aggregation;
-import org.opensearch.search.aggregations.bucket.MultiBucketsAggregation;
-import org.opensearch.search.aggregations.bucket.filter.Filter;
-import org.opensearch.search.builder.SearchSourceBuilder;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -76,6 +57,9 @@ import static org.nuxeo.ecm.platform.query.api.PageProviderService.NAMED_PARAMET
 /**
  * A page provider that performs a vector (knn) search against OpenSearch,
  * combined with NXQL filtering and optional aggregates.
+ * <p>
+ * Works with the OpenSearch 1 and the OpenSearch 2 search clients: the engine-specific part is delegated to the
+ * {@link VectorSearchEngine} matching the deployed search client.
  * <p>
  * The knn query is used as the main scoring query, while the NXQL query
  * (from the page provider definition) is applied as a post-filter.
@@ -89,6 +73,7 @@ import static org.nuxeo.ecm.platform.query.api.PageProviderService.NAMED_PARAMET
  *   <li>{@code embedding_automation_processor} - automation chain/script to compute embedding from input_text</li>
  *   <li>{@code k} - number of nearest neighbors (default: 10)</li>
  *   <li>{@code min_score} - minimum relevance score threshold (default: 0.4)</li>
+ *   <li>{@code opensearch_client_id} - id of the low-level OpenSearch client (default: search/default)</li>
  * </ul>
  */
 public class VectorSearchPageProvider extends SearchServicePageProvider {
@@ -97,7 +82,9 @@ public class VectorSearchPageProvider extends SearchServicePageProvider {
 
     public static final String RELEVANCE_SCORE = "relevance_score";
 
-    private static final Logger log = LogManager.getLogger(VectorSearchPageProvider.class);
+    public static final String DEFAULT_CLIENT_ID = "search/default";
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Override
     public List<DocumentModel> getCurrentPage() {
@@ -170,19 +157,10 @@ public class VectorSearchPageProvider extends SearchServicePageProvider {
             return getEmptyResult();
         }
 
-        // Build the knn query
-        QueryBuilder knnQueryBuilder = QueryBuilders.wrapperQuery(String.format("""
-                {
-                    "knn": {
-                        "%s": {
-                            "vector": %s,
-                            "k": %s
-                         }
-                    }
-                }
-                """, namedParameters.get("vector_index"), vector, namedParameters.getOrDefault("k", "10")));
+        float[] vectorValues = parseVector(vector);
+        int k = Integer.parseInt(namedParameters.getOrDefault("k", "10").trim());
 
-        // Resolve search index and build a SearchQuery for NXQL-to-OpenSearch conversion
+        // Resolve the search index and build a SearchQuery holding the NXQL query, the paging and the aggregates
         SearchService searchService = Framework.getService(SearchService.class);
         SearchIndexingService indexingService = Framework.getService(SearchIndexingService.class);
         String repository = coreSession.getRepositoryName();
@@ -201,82 +179,36 @@ public class VectorSearchPageProvider extends SearchServicePageProvider {
                 .addAggregates(aggregates)
                 .build();
 
-        // Get the OpenSearchSearchClient to obtain technical index name mappings
-        var searchClient = indexingService.getClient(searchIndex.client());
-        if (!(searchClient instanceof OpenSearchSearchClient osSearchClient)) {
-            throw new NuxeoException(
-                    "Vector search requires an OpenSearch search client. Got: "
-                            + (searchClient != null ? searchClient.getClass().getName() : "null"));
-        }
-        Map<String, String> technicalIndexes = osSearchClient.getTechnicalIndexes();
+        // The knn query can only be built with the native API of the search engine: delegate to the engine
+        // matching the deployed search client (OpenSearch 1 or OpenSearch 2).
+        // It runs the knn query as the main scoring query and the NXQL query as a post-filter.
+        SearchClient searchClient = indexingService.getClient(searchIndex.client());
+        VectorSearchEngine engine = VectorSearchEngines.forClient(searchClient);
 
-        // Use OpenSearchQueryTransformer to convert NXQL + aggregates to a proper OpenSearch SearchRequest
-        OpenSearchQueryTransformer transformer = new OpenSearchQueryTransformer(technicalIndexes, Map.of());
-        SearchRequest osRequest = transformer.apply(searchQuery);
-        SearchSourceBuilder source = osRequest.source();
-
-        // Swap queries: knn becomes the main scoring query, NXQL becomes post-filter
-        QueryBuilder nxqlQuery = source.query();
-        QueryBuilder existingPostFilter = source.postFilter();
-
-        source.query(knnQueryBuilder);
-        source.minScore(minScore);
-
-        BoolQueryBuilder postFilter = QueryBuilders.boolQuery();
-        if (nxqlQuery != null) {
-            postFilter.must(nxqlQuery);
-        }
-        if (existingPostFilter != null) {
-            postFilter.must(existingPostFilter);
-        }
-        if (postFilter.hasClauses()) {
-            source.postFilter(postFilter);
-        }
-
-        // Aggregates are already in the source from the transformer -- no changes needed
-
-        // Get the raw OpenSearch client.
-        // The low-level client ID in Nuxeo follows the convention "search/default".
-        OpenSearchClientService osClientService = Framework.getService(OpenSearchClientService.class);
-        if (osClientService == null) {
-            throw new NuxeoException(
-                    "OpenSearchClientService is not available. Vector search requires an OpenSearch backend.");
-        }
-
-        // Derive low-level client ID: convention is "search/" + descriptor name,
+        // The low-level client id follows the convention "search/" + search client descriptor name,
         // production templates use "search/default" for the "opensearch" search client.
-        String lowLevelClientId = namedParameters.getOrDefault("opensearch_client_id", "search/default");
-        OpenSearchClient client = osClientService.getClient(lowLevelClientId);
-        if (client == null) {
-            throw new NuxeoException(
-                    String.format("OpenSearch client '%s' is not available. "
-                            + "Check your OpenSearch configuration or set the 'opensearch_client_id' named parameter.",
-                            lowLevelClientId));
-        }
+        String clientId = namedParameters.getOrDefault("opensearch_client_id", DEFAULT_CLIENT_ID);
 
-        // Execute the search
-        SearchResponse response = client.search(osRequest);
-
-        SearchHits hits = response.getHits();
+        VectorSearchResponse response = engine.search(
+                new VectorSearchRequest(searchClient, searchQuery, clientId, index, vectorValues, k, minScore));
 
         // Load documents from the repository, preserving knn relevance ordering
         List<DocumentModel> result = new ArrayList<>();
-        for (SearchHit hit : hits.getHits()) {
-            IdRef docRef = new IdRef(hit.getId());
+        for (VectorSearchHit hit : response.hits()) {
+            IdRef docRef = new IdRef(hit.id());
             if (coreSession.exists(docRef)) {
                 DocumentModel doc = coreSession.getDocument(docRef);
-                doc.putContextData(RELEVANCE_SCORE, hit.getScore());
+                doc.putContextData(RELEVANCE_SCORE, hit.score());
                 result.add(doc);
             }
         }
 
         currentPageDocuments = result;
 
-        // Parse aggregate results from the response
-        if (response.getAggregations() != null && !aggregates.isEmpty()) {
+        // The buckets of the aggregates were filled by the engine
+        if (response.aggregatesParsed() && !aggregates.isEmpty()) {
             currentAggregates = new HashMap<>();
             for (Aggregate<? extends Bucket> agg : aggregates) {
-                parseAggregate(agg, response);
                 currentAggregates.put(agg.getId(), agg);
             }
         }
@@ -288,35 +220,13 @@ public class VectorSearchPageProvider extends SearchServicePageProvider {
     }
 
     /**
-     * Parses an aggregate result from the OpenSearch response.
-     * Each aggregate is wrapped in a Filter aggregation by the transformer.
+     * Parses the vector, received as a JSON array of numbers.
      */
-    @SuppressWarnings("unchecked")
-    protected void parseAggregate(Aggregate<? extends Bucket> agg, SearchResponse response) {
-        String filterId = AggregateParserBase.getFilterId(agg);
-        Filter filter = response.getAggregations().get(filterId);
-        if (filter == null) {
-            log.debug("No filter aggregation found for aggregate '{}' (filterId='{}')", agg.getId(), filterId);
-            return;
-        }
-        Aggregation aggregation = filter.getAggregations().get(agg.getId());
-        if (aggregation == null) {
-            log.debug("No aggregation found for aggregate '{}'", agg.getId());
-            return;
-        }
-
-        if (agg instanceof AggregateTerm a && aggregation instanceof MultiBucketsAggregation mba) {
-            a.setBuckets(AggregateTermParser.parseBuckets(mba.getBuckets()));
-        } else if (agg instanceof AggregateRange a && aggregation instanceof MultiBucketsAggregation mba) {
-            a.setBuckets(AggregateRangeParser.parseBuckets(mba.getBuckets()));
-        } else if (agg instanceof AggregateDateRange a && aggregation instanceof MultiBucketsAggregation mba) {
-            a.setBuckets(AggregateDateRangeParser.parseBuckets(mba.getBuckets()));
-        } else if (agg instanceof AggregateHistogram a && aggregation instanceof MultiBucketsAggregation mba) {
-            a.setBuckets(AggregateHistogramParser.parseBuckets(mba.getBuckets(), a));
-        } else if (agg instanceof AggregateDateHistogram a && aggregation instanceof MultiBucketsAggregation mba) {
-            a.setBuckets(AggregateDateHistogramParser.parseBuckets(mba.getBuckets(), a));
-        } else {
-            log.warn("Unsupported aggregate type for parsing: {} ({})", agg.getId(), agg.getClass().getSimpleName());
+    protected float[] parseVector(String vector) {
+        try {
+            return MAPPER.readValue(vector, float[].class);
+        } catch (JsonProcessingException e) {
+            throw new NuxeoException("The vector must be a JSON array of numbers: " + e.getOriginalMessage(), e);
         }
     }
 

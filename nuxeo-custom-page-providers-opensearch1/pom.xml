@@ -1,0 +1,69 @@
+<?xml version="1.0"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.nuxeo.labs.custom.page.providers</groupId>
+        <artifactId>nuxeo-custom-page-providers-parent</artifactId>
+        <version>2025.3.0-SNAPSHOT</version>
+    </parent>
+    <artifactId>nuxeo-custom-page-providers-opensearch1</artifactId>
+    <name>Nuxeo Custom PageProviders OpenSearch 1 adapter</name>
+    <description>Vector search engine for the opensearch1 search client. Only loaded when that client is deployed.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.nuxeo.labs.custom.page.providers</groupId>
+            <artifactId>nuxeo-custom-page-providers-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.nuxeo.runtime</groupId>
+            <artifactId>nuxeo-runtime</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.nuxeo.ecm.core</groupId>
+            <artifactId>nuxeo-core-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.nuxeo.ecm.core</groupId>
+            <artifactId>nuxeo-core-query</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.nuxeo.ecm.core</groupId>
+            <artifactId>nuxeo-core-search</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- OpenSearch 1 only: never add an OpenSearch 2 dependency to this module -->
+        <dependency>
+            <groupId>org.nuxeo.runtime</groupId>
+            <artifactId>nuxeo-runtime-opensearch1</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.nuxeo.ecm.core</groupId>
+            <artifactId>nuxeo-search-client-opensearch1</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>

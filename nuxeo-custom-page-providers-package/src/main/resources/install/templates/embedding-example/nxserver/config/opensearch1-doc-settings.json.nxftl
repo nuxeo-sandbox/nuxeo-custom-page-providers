@@ -1,3 +1,7 @@
+<#-- Index settings with knn enabled, for the opensearch1 search client (OpenSearch 1).
+     Only rendered when that client is deployed: with the opensearch2 client, the properties used
+     below do not exist and this file is not read. -->
+<#if (nuxeo.search.client.default.opensearch1.index.name)?has_content>
 {
   "index.translog.durability": "${nuxeo.search.client.default.opensearch1.settings.indexTranslogDurability}",
 <#if "${(nuxeo.opensearch1.embed.enabled)!}" == "true" && "${nuxeo.search.client.default.opensearch1.client.server}" == "">
@@ -129,3 +133,6 @@
     }
   }
 }
+<#else>
+{}
+</#if>

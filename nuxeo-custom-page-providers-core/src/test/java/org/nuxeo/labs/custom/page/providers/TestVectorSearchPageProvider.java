@@ -41,8 +41,8 @@ public class TestVectorSearchPageProvider {
             pp.getCurrentPage();
             Assert.fail("Knn should have failed");
         } catch (NuxeoException e) {
-            // In LTS 2025, the OpenSearchClientService may not be available in unit tests
-            // without a real OpenSearch backend, so the error may differ.
+            // Unit tests run with the default "repository" search client, which cannot run a knn query:
+            // the provider must fail with an explicit error (vector search needs OpenSearch 1 or 2).
             Assert.assertNotNull(e.getMessage());
         }
     }

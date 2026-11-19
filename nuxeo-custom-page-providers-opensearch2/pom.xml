@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.nuxeo.labs.custom.page.providers</groupId>
         <artifactId>nuxeo-custom-page-providers-parent</artifactId>
-        <version>2025.3.0-SNAPSHOT</version>
+        <version>2025.4.0-SNAPSHOT</version>
     </parent>
     <artifactId>nuxeo-custom-page-providers-opensearch2</artifactId>
     <name>Nuxeo Custom PageProviders OpenSearch 2 adapter</name>

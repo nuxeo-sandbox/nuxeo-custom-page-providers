@@ -186,7 +186,7 @@
         }
       }
     },
-    "embeddings:text": {
+    "embedding:text": {
       "type": "knn_vector",
       "dimension": 1024,
       "method": {
@@ -199,7 +199,7 @@
         }
       }
     },
-    "embeddings:image": {
+    "embedding:image": {
       "type": "knn_vector",
       "dimension": 1024,
       "method": {

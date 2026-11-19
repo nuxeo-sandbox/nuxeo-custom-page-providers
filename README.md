@@ -156,7 +156,40 @@ nuxeo.append.templates.system=default,mongodb<b>,embeddings-basic</b>
 
 > [!IMPORTANT]
 > * Templates are applied in order, and the last one wins. The template of this plugin replaces files of the template of the search client (`opensearch1-search-client` or `opensearch2-search-client`, added when its package is installed), so it must come after it. This is the case when you append it as above.
-> * Index settings and mapping are applied only when the index is created. If the index already exists (for example, you add the template to an existing server), you must drop it and re-index the repository.
+> * Index settings and mapping are applied only when the index is created. If the index already exists (for example, you add the template to an existing server), you must re-create it: see _Existing Repository: Re-create the Index_ below.
+
+##### Existing Repository: Re-create the Index
+
+When Nuxeo starts and the search index already exists, it uses it as is: the settings (knn enabled) and the mapping (vector fields) of the template are **not** applied, and vector searches fail. Re-indexing a document, a folder, or the result of a query does not change that: the index must be dropped and created again.
+
+The full re-index of the Nuxeo Management REST API does this. Called **without** a `query` parameter, it drops the index, creates it again with the current settings and mapping, then re-indexes all the documents of the repository. So, after installing the plugin, adding the template and restarting Nuxeo, run:
+
+```bash
+curl -X POST -u Administrator:<password> "http://localhost:8080/nuxeo/api/v1/management/search/reindex"
+```
+
+It returns the status of a Bulk command, with its `commandId`. The re-indexing runs in the background: check it until `state` is `COMPLETED` (`processed` and `total` give the progression).
+
+```bash
+curl -u Administrator:<password> "http://localhost:8080/nuxeo/api/v1/management/bulk/<commandId>"
+```
+
+> [!WARNING]
+> * The index is empty right after the call and filled progressively: searches return incomplete results until the command is completed. Plan it on a large repository.
+> * Do not pass a `query` parameter: with a query, the matching documents are re-indexed in the existing index, which is not dropped.
+> * The Management API requires an administrator, and can be restricted to a dedicated port (`nuxeo.management.api.http.port`).
+
+To check the result, ask OpenSearch directly (`nuxeo` is the default name of the index, and the field is one declared in your mapping):
+
+```bash
+curl "http://localhost:9200/nuxeo/_settings?filter_path=*.settings.index.knn"
+```
+
+```bash
+curl "http://localhost:9200/nuxeo/_mapping/field/embeddings:image"
+```
+
+The first one must return `"knn": "true"`, the second one a field of type `knn_vector`.
 
 ##### OpenSearch 1 vs OpenSearch 2 mapping
 
